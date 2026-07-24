@@ -1,0 +1,56 @@
+name: Backend Flask Security Review Audit
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  backend-security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install ExcelJS Dependency
+        run: |
+          cd ImplantAIE2E
+          npm install
+
+      - name: Execute Backend Security Audit Script
+        run: |
+          export NODE_PATH=$(pwd)/ImplantAIE2E/node_modules
+          node ImplantAIBackend/scripts/generateSecuritySuite.js
+
+      - name: Zero-Critical Security Gate Check
+        run: |
+          CRITICAL_COUNT=$(grep -i "Critical Findings" security-review.md | grep -o '[0-9]\+' | head -n 1 || echo "0")
+          echo "Critical Security Vulnerabilities Discovered: $CRITICAL_COUNT"
+          if [ "$CRITICAL_COUNT" -gt 0 ]; then
+            echo "❌ Zero-Critical Policy Failed: Found $CRITICAL_COUNT critical vulnerabilities."
+            exit 1
+          fi
+          echo "✅ Security Gate Passed: 0 Critical vulnerabilities."
+
+      - name: Publish Security Audit Summary to Step Summary
+        run: |
+          cat executive-summary.md >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat dependency-report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Security Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-security-findings
+          path: |
+            findings.xlsx
+            security-review.md
+            dependency-report.md
+            executive-summary.md

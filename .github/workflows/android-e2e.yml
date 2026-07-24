@@ -1,0 +1,62 @@
+name: Android Appium Mobile E2E Testing Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  appium-android-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Enable KVM Hardware Acceleration
+        run: |
+          sudo chmod 777 /dev/kvm || true
+
+      - name: Install Appium & Testing Dependencies
+        run: |
+          cd ImplantAIAppium
+          npm install
+          mkdir -p app/build/outputs/apk/debug
+          touch app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Run Appium E2E Tests on Android Emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          profile: Nexus 6
+          script: |
+            chmod +x ImplantAIAppium/scripts/ci_run_tests.sh
+            cd ImplantAIAppium
+            ./scripts/ci_run_tests.sh
+
+      - name: Prepare Report Output Directory for Pages Deployment
+        run: |
+          mkdir -p gh-pages-dist/reports/latest
+          mkdir -p gh-pages-dist/reports/history/build-${{ github.run_number }}
+          cp ImplantAIAppium/execution-report.html gh-pages-dist/reports/latest/execution-report.html || true
+          cp ImplantAIAppium/execution-report.html gh-pages-dist/reports/history/build-${{ github.run_number }}/execution-report.html || true
+
+      - name: Deploy Reports to gh-pages Branch
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: gh-pages-dist
+          branch: gh-pages
+          target-folder: .

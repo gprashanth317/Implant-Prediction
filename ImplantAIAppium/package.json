@@ -1,0 +1,17 @@
+{
+  "name": "implant-ai-appium",
+  "version": "1.0.0",
+  "description": "Appium Mobile E2E Automation Suite for ImplantAI Android",
+  "main": "tests/12_e2e/mega_android_1100.test.js",
+  "scripts": {
+    "test:android": "wdio run wdio.conf.js"
+  },
+  "dependencies": {
+    "@wdio/cli": "^8.24.0",
+    "@wdio/local-runner": "^8.24.0",
+    "@wdio/mocha-framework": "^8.24.0",
+    "@wdio/spec-reporter": "^8.24.0",
+    "appium": "^2.4.1",
+    "exceljs": "^4.4.0"
+  }
+}

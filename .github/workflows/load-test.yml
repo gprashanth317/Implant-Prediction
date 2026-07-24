@@ -1,0 +1,42 @@
+name: Backend API k6 Performance Load Testing
+
+on:
+  push:
+    paths:
+      - 'app.py'
+      - 'ImplantAIBackend/**'
+  workflow_dispatch:
+
+jobs:
+  k6-load-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Setup Grafana k6 Action
+        uses: grafana/setup-k6-action@v1
+
+      - name: Start Flask Application Server in Background
+        run: |
+          pip install flask flask_sqlalchemy scikit-learn shap python-dotenv joblib numpy
+          python app.py &
+          sleep 4
+          curl -s http://127.0.0.1:5000/ || echo "Flask server startup check completed."
+
+      - name: Execute k6 API Load Test (100 VUs, 1 min)
+        run: |
+          k6 run --summary-export=summary.json ImplantAIBackend/scripts/load-test.js
+        env:
+          BACKEND_URL: "http://127.0.0.1:5000"
+
+      - name: Parse k6 Performance Summary & Publish to GHA Step Summary
+        run: |
+          node ImplantAIBackend/scripts/parseK6Summary.js
+        env:
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}

@@ -1,0 +1,16 @@
+{
+  "name": "implant-ai-e2e",
+  "version": "1.0.0",
+  "description": "Selenium Web E2E Test Suite and Security Auditor for ImplantAI",
+  "main": "tests/mega_web_1100.test.js",
+  "scripts": {
+    "test": "mocha tests/mega_web_1100.test.js --reporter utils/excelReporter.js",
+    "security-audit": "node scripts/generateWebSecuritySuite.js"
+  },
+  "dependencies": {
+    "chromedriver": "^120.0.0",
+    "exceljs": "^4.4.0",
+    "mocha": "^10.2.0",
+    "selenium-webdriver": "^4.16.0"
+  }
+}

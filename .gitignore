@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+instance/*.db
+.idea/
+node_modules/
+.wdio-results.jsonl
+summary.json
