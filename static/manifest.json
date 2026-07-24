@@ -1,0 +1,22 @@
+{
+  "name": "ImplantAI - Maxillofacial Implant Predictor",
+  "short_name": "ImplantAI",
+  "description": "AI-Driven Clinical Decision Support System for Maxillofacial Implant Survival Prediction",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e2d3c",
+  "theme_color": "#1e2d3c",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/static/ai.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/static/ai.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
