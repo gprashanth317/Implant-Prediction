@@ -1,4 +1,4 @@
-name: Build Real Android APK Package
+name: Build Android APK Package
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-real-android-apk:
+  build-native-apk:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -18,75 +18,22 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Install Bubblewrap CLI & Build Tools
+      - name: Build Native Android APK with Gradle
         run: |
-          npm install -g @bubblewrap/cli
+          cd android_app
+          gradle wrapper --gradle-version 8.2
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Initialize Android App Project & Compile Real APK
+      - name: Copy Built APK Artifact
         run: |
-          mkdir -p apk_build && cd apk_build
-          
-          # Initialize Bubblewrap manifest configuration
-          npx @bubblewrap/cli init --manifest=https://implant-prediction.onrender.com/static/manifest.json --metafile=twa-manifest.json || true
+          mkdir -p dist_apk
+          cp android_app/app/build/outputs/apk/debug/app-debug.apk dist_apk/ImplantAI.apk
 
-          # If manifest initialization requires fallback defaults, create valid TWA config
-          if [ ! -f "twa-manifest.json" ]; then
-            cat << 'EOF' > twa-manifest.json
-{
-  "packageId": "com.implantai.app",
-  "host": "implant-prediction.onrender.com",
-  "name": "ImplantAI",
-  "launcherName": "ImplantAI",
-  "display": "standalone",
-  "themeColor": "#1E2D3C",
-  "navigationColor": "#1E2D3C",
-  "backgroundColor": "#1E2D3C",
-  "enableNotifications": true,
-  "startUrl": "/",
-  "iconUrl": "https://implant-prediction.onrender.com/static/ai.jpg",
-  "maskableIconUrl": "https://implant-prediction.onrender.com/static/ai.jpg",
-  "appVersionName": "1.0.0",
-  "appVersionCode": 1,
-  "signingKey": {
-    "path": "./android.keystore",
-    "alias": "android"
-  }
-}
-EOF
-          fi
-
-          # Build compiled Android project using Bubblewrap CLI
-          npx @bubblewrap/cli build --skipSigning || true
-
-          # Fallback build using Cordova/Android SDK Gradle if needed
-          if [ ! -f "app-release-unsigned.apk" ] && [ ! -f "app-debug.apk" ]; then
-            npm install -g cordova
-            cordova create myApp com.implantai.app ImplantAI
-            cd myApp
-            cordova platform add android
-            mkdir -p www
-            cp -r ../../templates/* www/ 2>/dev/null || true
-            cp -r ../../static/* www/ 2>/dev/null || true
-            cordova build android || true
-            cd ..
-          fi
-
-          # Locate built binary APK
-          APK_FILE=$(find . -name "*.apk" | head -n 1)
-          if [ -n "$APK_FILE" ]; then
-            mkdir -p ../dist_apk
-            cp "$APK_FILE" ../dist_apk/ImplantAI.apk
-            echo "✅ Real Compiled Android APK created at dist_apk/ImplantAI.apk"
-          else
-            echo "❌ APK compile fallback"
-          fi
-
-      - name: Upload Real Android APK Artifact (.apk)
+      - name: Upload Native Android APK Artifact (.apk)
         uses: actions/upload-artifact@v4
         with:
           name: ImplantAI-Android-APK
