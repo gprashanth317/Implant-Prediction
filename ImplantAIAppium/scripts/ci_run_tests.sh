@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Starting Appium CI Execution Script..."
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+
+cd "$PROJECT_DIR"
+echo "Starting Appium CI Execution in directory: $PROJECT_DIR"
 
 # Inject GITHUB_PATH into current shell environment if present
 if [ -n "$GITHUB_PATH" ] && [ -f "$GITHUB_PATH" ]; then
@@ -19,7 +23,7 @@ if [ -f "${APK_PATH}" ]; then
     echo "Installing APK from ${APK_PATH}..."
     adb install -r "${APK_PATH}" || echo "ADB install warning skipped."
 else
-    console.log "APK Path ${APK_PATH} not found, continuing with installed/mock package."
+    echo "APK Path ${APK_PATH} not found, continuing with installed/mock package."
 fi
 
 # Start Appium server in background

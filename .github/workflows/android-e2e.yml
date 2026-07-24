@@ -42,10 +42,7 @@ jobs:
         with:
           api-level: 29
           profile: Nexus 6
-          script: |
-            chmod +x ImplantAIAppium/scripts/ci_run_tests.sh
-            cd ImplantAIAppium
-            ./scripts/ci_run_tests.sh
+          script: bash ImplantAIAppium/scripts/ci_run_tests.sh
 
       - name: Prepare Report Output Directory for Pages Deployment
         run: |
