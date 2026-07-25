@@ -225,6 +225,9 @@ function successfulAuthTransition() {
 
 async function logout() {
     try {
+        if (typeof firebaseAuth !== 'undefined' && firebaseAuth) {
+            await firebaseAuth.signOut();
+        }
         await fetch('/auth/logout', { method: 'POST' });
     } catch (e) {
         console.warn("Logout request failed", e);

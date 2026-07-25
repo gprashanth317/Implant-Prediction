@@ -40,6 +40,7 @@ if (typeof firebase !== 'undefined') {
             googleProvider = new firebase.auth.GoogleAuthProvider();
             googleProvider.addScope('email');
             googleProvider.addScope('profile');
+            googleProvider.setCustomParameters({ prompt: 'select_account' });
         }
     } catch (e) {
         console.warn("Firebase Web SDK initialization:", e);
