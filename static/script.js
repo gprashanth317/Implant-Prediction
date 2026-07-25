@@ -331,7 +331,10 @@ function showPage(pageId) {
         resetPredictorForm();
     }
     else if (pageId === 'history-page') changeBackground('view.jpg');
-    else if (pageId === 'profile-page') changeBackground('view.jpg'); 
+    else if (pageId === 'profile-page') {
+        changeBackground('view.jpg'); 
+        resetProfilePage();
+    }
     else if (pageId === 'analytics-page') changeBackground('view.jpg');
 }
 
@@ -353,6 +356,21 @@ function resetPredictorForm() {
         scoreDisplay.innerText = '--%';
         scoreDisplay.style.color = '#1e2d3c';
     }
+}
+
+function resetProfilePage() {
+    toggleProfileEdit(false);
+    togglePasswordModal(false);
+    const forgotContainer = document.getElementById('profile-forgot-container');
+    if (forgotContainer) forgotContainer.classList.add('hidden');
+    
+    const profMsg = document.getElementById('profile-update-msg');
+    if (profMsg) { profMsg.classList.add('hidden'); profMsg.textContent = ''; }
+    
+    const pwMsg = document.getElementById('password-update-msg');
+    if (pwMsg) { pwMsg.classList.add('hidden'); pwMsg.textContent = ''; }
+
+    fetchProfile();
 }
 
 // --- 4. PREDICTOR ENGINE CONTROLLER ---

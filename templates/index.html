@@ -257,12 +257,12 @@
                 <section class="card form-section">
                     <form id="predictor-form">
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                            <div class="form-group" style="margin-bottom:0;"><label>Patient Name</label><input type="text" id="patientName" required></div>
-                            <div class="form-group" style="margin-bottom:0;"><label>Patient ID</label><input type="text" id="patientId" required></div>
+                            <div class="form-group" style="margin-bottom:0;"><label>Patient Name</label><input type="text" id="patientName" placeholder="Patient Name" required></div>
+                            <div class="form-group" style="margin-bottom:0;"><label>Patient ID</label><input type="text" id="patientId" placeholder="Patient ID" required></div>
                         </div>
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                            <div class="form-group" style="margin-bottom:0;"><label>Age</label><input type="number" id="age" min="18" max="100" value="50" required></div>
+                            <div class="form-group" style="margin-bottom:0;"><label>Age</label><input type="number" id="age" min="18" max="100" placeholder="Patient Age (e.g. 50)" required></div>
                             <div class="form-group" style="margin-bottom:0;"><label>Gender</label>
                                 <select id="gender"><option>Male</option><option>Female</option></select>
                             </div>
@@ -281,8 +281,8 @@
                         </div>
                         
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                            <div class="form-group" style="margin-bottom:0;"><label>Implant Length (mm)</label><input type="number" step="0.1" id="implant_length_mm" value="10.0" required></div>
-                            <div class="form-group" style="margin-bottom:0;"><label>Implant Diameter (mm)</label><input type="number" step="0.1" id="implant_diameter_mm" value="4.0" required></div>
+                            <div class="form-group" style="margin-bottom:0;"><label>Implant Length (mm)</label><input type="number" step="0.1" id="implant_length_mm" placeholder="Implant Length (e.g. 10.0)" required></div>
+                            <div class="form-group" style="margin-bottom:0;"><label>Implant Diameter (mm)</label><input type="number" step="0.1" id="implant_diameter_mm" placeholder="Implant Diameter (e.g. 4.0)" required></div>
                             <div class="form-group" style="margin-bottom:0;"><label>Implant Surface</label>
                                 <select id="implant_surface"><option>Machined</option><option selected>Roughened</option></select>
                             </div>
