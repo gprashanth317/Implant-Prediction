@@ -371,7 +371,9 @@ document.getElementById('predictor-form').addEventListener('submit', async funct
         const result = await response.json();
         
         if (result.status === 'success') {
-            document.getElementById('survival-score').innerText = `${result.survival_probability}%`;
+            const scoreDisplay = document.getElementById('survival-score');
+            scoreDisplay.innerText = `${result.survival_probability}%`;
+            scoreDisplay.style.color = result.survival_probability >= 90 ? '#27ae60' : (result.survival_probability >= 80 ? '#d35400' : '#c62828');
             
             const explanationList = document.getElementById('explanation-breakdown');
             explanationList.innerHTML = '';
@@ -388,6 +390,8 @@ document.getElementById('predictor-form').addEventListener('submit', async funct
                     `;
                 });
                 document.getElementById('explanation-section').classList.remove('hidden');
+            } else {
+                document.getElementById('explanation-section').classList.add('hidden');
             }
 
             lastPredictionItem = {
@@ -409,21 +413,22 @@ document.getElementById('predictor-form').addEventListener('submit', async funct
                 score: result.survival_probability
             };
 
-            // Save evaluation record directly into Firebase Firestore Cloud Database
-            if (typeof firebaseDB !== 'undefined' && firebaseDB) {
-                try {
-                    await firebaseDB.collection('patient_history').add({
-                        ...lastPredictionItem,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    console.log("🔥 Patient evaluation saved directly to Firebase Firestore Cloud Database!");
-                } catch (fsErr) {
-                    console.warn("Firestore patient history save warning:", fsErr);
-                }
-            }
+            // Unhide results card IMMEDIATELY
+            const resultsCard = document.getElementById('results-card');
+            resultsCard.classList.remove('hidden');
+            resultsCard.scrollIntoView({ behavior: 'smooth' });
 
-            document.getElementById('results-card').classList.remove('hidden');
-            document.getElementById('results-card').scrollIntoView({ behavior: 'smooth' });
+            // Non-blocking background save to Firebase Firestore
+            if (typeof firebaseDB !== 'undefined' && firebaseDB) {
+                firebaseDB.collection('patient_history').add({
+                    ...lastPredictionItem,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).then(() => {
+                    console.log("🔥 Patient evaluation saved directly to Firebase Firestore Cloud Database!");
+                }).catch(fsErr => {
+                    console.warn("Firestore patient history save warning:", fsErr);
+                });
+            }
         } else {
             alert(`Prediction Error: ${result.message}`);
         }
