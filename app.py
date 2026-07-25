@@ -35,11 +35,11 @@ def allowed_file(filename):
 db = SQLAlchemy(app)
 
 # --- FIREBASE ADMIN & FIRESTORE CLOUD DATABASE INITIALIZATION ---
-import firebase_admin
-from firebase_admin import credentials, firestore
-
 firebase_db = None
 try:
+    import firebase_admin
+    from firebase_admin import credentials, firestore
+
     if not firebase_admin._apps:
         cred_path = os.environ.get('FIREBASE_CREDENTIALS_PATH', 'firebase_key.json')
         if os.path.exists(cred_path):
@@ -49,6 +49,8 @@ try:
             firebase_admin.initialize_app()
         print("🔥 Firebase Admin SDK initialized successfully!")
     firebase_db = firestore.client()
+except ImportError:
+    print("ℹ️ Note: firebase-admin Python package not installed locally. Web SDK & local DB active.")
 except Exception as e:
     print(f" Warning: Firebase Admin initialization: {e}")
 
