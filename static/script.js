@@ -199,9 +199,6 @@ document.getElementById('forgot-step1-form').addEventListener('submit', async fu
             document.getElementById('forgot-step2-form').classList.remove('hidden');
             document.getElementById('forgot-card-title').innerText = "📩 Enter Verification OTP";
             document.getElementById('forgot-card-subtitle').innerText = `Verification code sent to ${email}`;
-            
-            const banner = document.getElementById('otp-demo-banner');
-            banner.innerHTML = `🔑 OTP Verification Code: <strong>${result.otp_code}</strong>`;
         } else {
             msgDiv.textContent = '❌ ' + (result.message || 'Email not found.');
             msgDiv.classList.remove('hidden');
@@ -1097,13 +1094,23 @@ document.getElementById('password-change-form').addEventListener('submit', async
     }
 });
 
+// --- PROFILE 3-STEP OTP FORGOT PASSWORD CONTROLLERS ---
+let profResetEmailStorage = '';
+
+function resetProfForgotToStep1() {
+    document.getElementById('prof-step1-form').classList.remove('hidden');
+    document.getElementById('prof-step2-form').classList.add('hidden');
+    document.getElementById('prof-step3-form').classList.add('hidden');
+    document.getElementById('prof-forgot-title').innerText = "🔑 Reset Forgotten Password";
+    document.getElementById('prof-forgot-subtitle').innerText = "Enter your registered email address to receive a 6-digit OTP verification code";
+    document.getElementById('pf-msg-step1').classList.add('hidden');
+}
+
 function toggleProfileForgotForm(show) {
     const pwContainer = document.getElementById('password-change-container');
     const pfContainer = document.getElementById('profile-forgot-container');
-    const pfMsg = document.getElementById('pf-msg');
 
-    pfMsg.classList.add('hidden');
-    pfMsg.textContent = '';
+    resetProfForgotToStep1();
 
     if (show) {
         pwContainer.classList.add('hidden');
@@ -1118,28 +1125,88 @@ function toggleProfileForgotForm(show) {
     }
 }
 
-document.getElementById('profile-forgot-form').addEventListener('submit', async function(e) {
+// Profile Step 1: Send OTP
+document.getElementById('prof-step1-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    const email = document.getElementById('pf-email').value;
+    const email = document.getElementById('pf-email').value.trim();
+    const msgDiv = document.getElementById('pf-msg-step1');
+    msgDiv.classList.add('hidden');
+
+    try {
+        const response = await fetch('/auth/send_otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email })
+        });
+        const result = await response.json();
+
+        if (response.ok && result.status === 'success') {
+            profResetEmailStorage = email;
+            document.getElementById('prof-step1-form').classList.add('hidden');
+            document.getElementById('prof-step2-form').classList.remove('hidden');
+            document.getElementById('prof-forgot-title').innerText = "📩 Enter Verification OTP";
+            document.getElementById('prof-forgot-subtitle').innerText = `Verification code sent to ${email}`;
+        } else {
+            msgDiv.textContent = '❌ ' + (result.message || 'Registered email not found.');
+            msgDiv.classList.remove('hidden');
+        }
+    } catch (err) {
+        msgDiv.textContent = '❌ Server connection error.';
+        msgDiv.classList.remove('hidden');
+    }
+});
+
+// Profile Step 2: Verify OTP
+document.getElementById('prof-step2-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const otpInput = document.getElementById('pf-otp-input').value.trim();
+    const msgDiv = document.getElementById('pf-msg-step2');
+    msgDiv.classList.add('hidden');
+
+    try {
+        const response = await fetch('/auth/verify_otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: profResetEmailStorage, otp: otpInput })
+        });
+        const result = await response.json();
+
+        if (response.ok && result.status === 'success') {
+            document.getElementById('prof-step2-form').classList.add('hidden');
+            document.getElementById('prof-step3-form').classList.remove('hidden');
+            document.getElementById('prof-forgot-title').innerText = "🔒 Set New Password";
+            document.getElementById('prof-forgot-subtitle').innerText = "OTP Verified! Set your new account password";
+        } else {
+            msgDiv.textContent = '❌ ' + (result.message || 'Invalid OTP.');
+            msgDiv.classList.remove('hidden');
+        }
+    } catch (err) {
+        msgDiv.textContent = '❌ Connection error.';
+        msgDiv.classList.remove('hidden');
+    }
+});
+
+// Profile Step 3: Reset Password
+document.getElementById('prof-step3-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
     const newPw = document.getElementById('pf-new-pw').value;
     const confirmPw = document.getElementById('pf-confirm-pw').value;
-    const pfMsg = document.getElementById('pf-msg');
-
-    pfMsg.classList.add('hidden');
+    const msgDiv = document.getElementById('pf-msg-step3');
+    msgDiv.classList.add('hidden');
 
     if (newPw !== confirmPw) {
-        pfMsg.style.color = '#c62828';
-        pfMsg.textContent = '❌ New password and confirmation do not match.';
-        pfMsg.classList.remove('hidden');
+        msgDiv.style.color = '#c62828';
+        msgDiv.textContent = '❌ New password and confirmation do not match.';
+        msgDiv.classList.remove('hidden');
         return;
     }
 
     try {
-        const response = await fetch('/auth/forgot_password', {
+        const response = await fetch('/auth/reset_password_otp', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                email: email,
+                email: profResetEmailStorage,
                 new_password: newPw,
                 confirm_password: confirmPw
             })
@@ -1147,23 +1214,23 @@ document.getElementById('profile-forgot-form').addEventListener('submit', async 
 
         const result = await response.json();
         if (response.ok && result.status === 'success') {
-            pfMsg.style.color = '#2e7d32';
-            pfMsg.textContent = '✅ ' + result.message;
-            pfMsg.classList.remove('hidden');
+            msgDiv.style.color = '#27ae60';
+            msgDiv.textContent = '✅ ' + result.message;
+            msgDiv.classList.remove('hidden');
 
             setTimeout(() => {
                 toggleProfileForgotForm(false);
                 togglePasswordModal(false);
             }, 1500);
         } else {
-            pfMsg.style.color = '#c62828';
-            pfMsg.textContent = '❌ ' + (result.message || 'Password reset failed.');
-            pfMsg.classList.remove('hidden');
+            msgDiv.style.color = '#c62828';
+            msgDiv.textContent = '❌ ' + (result.message || 'Password update failed.');
+            msgDiv.classList.remove('hidden');
         }
     } catch (err) {
-        pfMsg.style.color = '#c62828';
-        pfMsg.textContent = '❌ Communication error.';
-        pfMsg.classList.remove('hidden');
+        msgDiv.style.color = '#c62828';
+        msgDiv.textContent = '❌ Communication error.';
+        msgDiv.classList.remove('hidden');
     }
 });
 

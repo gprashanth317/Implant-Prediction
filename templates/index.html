@@ -98,8 +98,7 @@
 
             <!-- Step 2: Verify OTP -->
             <form id="forgot-step2-form" class="hidden">
-                <div id="otp-demo-banner" style="background:#e8f8f5; color:#27ae60; padding:10px; border-radius:6px; font-weight:bold; margin-bottom:12px; text-align:center;"></div>
-                <div class="form-group"><input type="text" id="forgot-otp-input" placeholder="Enter 6-Digit OTP (e.g. 849201)" maxlength="6" required></div>
+                <div class="form-group"><input type="text" id="forgot-otp-input" placeholder="Enter 6-Digit OTP Code Sent to Email" maxlength="6" required></div>
                 <div id="forgot-msg-step2" class="hidden" style="margin-bottom: 10px; font-weight: bold; color: #c62828;"></div>
                 <div style="display: flex; gap: 10px;">
                     <button type="submit" class="btn-primary" style="flex: 1;">Verify OTP Code</button>
@@ -228,14 +227,39 @@
                         </form>
                     </div>
 
-                    <!-- Profile Reset Password Container (When Forgot Password is clicked inside Profile) -->
+                    <!-- Profile Reset Password Container (3-Step OTP Verification Flow) -->
                     <div id="profile-forgot-container" class="hidden" style="max-width: 440px; margin: 0 auto; text-align: left;">
-                        <h3 style="margin-bottom: 20px; font-size: 1.4rem; text-align: center;">❓ Reset Forgotten Password</h3>
-                        <form id="profile-forgot-form">
+                        <h3 id="prof-forgot-title" style="margin-bottom: 8px; font-size: 1.4rem; text-align: center;">🔑 Reset Forgotten Password</h3>
+                        <p id="prof-forgot-subtitle" style="font-size:0.9rem; color:#7f8c8d; text-align:center; margin-bottom: 20px;">Enter your registered email address to receive a 6-digit OTP verification code</p>
+                        
+                        <!-- Step 1: Send OTP -->
+                        <form id="prof-step1-form">
                             <div class="form-group" style="margin-bottom: 15px;">
                                 <label style="font-weight: 500; color: #333;">Your Registered Email</label>
                                 <input type="email" id="pf-email" required style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
                             </div>
+                            <div id="pf-msg-step1" class="hidden" style="margin-bottom: 15px; font-weight: bold; text-align: center; color: #c62828;"></div>
+                            <div style="display: flex; gap: 10px;">
+                                <button type="submit" class="btn-primary" style="flex: 1; background: #e67e22;">Send OTP Code</button>
+                                <button type="button" class="btn-primary" onclick="toggleProfileForgotForm(false)" style="flex: 1; background: #7f8c8d;">Cancel</button>
+                            </div>
+                        </form>
+
+                        <!-- Step 2: Verify OTP -->
+                        <form id="prof-step2-form" class="hidden">
+                            <div class="form-group" style="margin-bottom: 15px;">
+                                <label style="font-weight: 500; color: #333;">Enter 6-Digit OTP</label>
+                                <input type="text" id="pf-otp-input" maxlength="6" placeholder="Enter OTP received in email" required style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
+                            </div>
+                            <div id="pf-msg-step2" class="hidden" style="margin-bottom: 15px; font-weight: bold; text-align: center; color: #c62828;"></div>
+                            <div style="display: flex; gap: 10px;">
+                                <button type="submit" class="btn-primary" style="flex: 1; background: #27ae60;">Verify OTP Code</button>
+                                <button type="button" class="btn-primary" onclick="resetProfForgotToStep1()" style="flex: 1; background: #7f8c8d;">Resend OTP</button>
+                            </div>
+                        </form>
+
+                        <!-- Step 3: Reset Password -->
+                        <form id="prof-step3-form" class="hidden">
                             <div class="form-group" style="margin-bottom: 15px;">
                                 <label style="font-weight: 500; color: #333;">Set New Password</label>
                                 <input type="password" id="pf-new-pw" minlength="6" required style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
@@ -244,11 +268,8 @@
                                 <label style="font-weight: 500; color: #333;">Confirm New Password</label>
                                 <input type="password" id="pf-confirm-pw" minlength="6" required style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
                             </div>
-                            <div id="pf-msg" class="hidden" style="margin-bottom: 15px; font-weight: bold; text-align: center;"></div>
-                            <div style="display: flex; gap: 10px;">
-                                <button type="submit" class="btn-primary" style="flex: 1; background: #e67e22;">Reset Password</button>
-                                <button type="button" class="btn-primary" onclick="toggleProfileForgotForm(false)" style="flex: 1; background: #7f8c8d;">Cancel</button>
-                            </div>
+                            <div id="pf-msg-step3" class="hidden" style="margin-bottom: 15px; font-weight: bold; text-align: center;"></div>
+                            <button type="submit" class="btn-primary" style="width: 100%; background: #27ae60;">Update Password</button>
                         </form>
                     </div>
                 </div>
