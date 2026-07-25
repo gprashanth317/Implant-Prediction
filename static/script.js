@@ -326,9 +326,33 @@ function showPage(pageId) {
     closeNav();
 
     if (pageId === 'home-page') changeBackground('homepage.jpg');
-    else if (pageId === 'predict-page') changeBackground('implant.jpg');
+    else if (pageId === 'predict-page') {
+        changeBackground('implant.jpg');
+        resetPredictorForm();
+    }
     else if (pageId === 'history-page') changeBackground('view.jpg');
     else if (pageId === 'profile-page') changeBackground('view.jpg'); 
+    else if (pageId === 'analytics-page') changeBackground('view.jpg');
+}
+
+function resetPredictorForm() {
+    const form = document.getElementById('predictor-form');
+    if (form) form.reset();
+
+    const resultsCard = document.getElementById('results-card');
+    if (resultsCard) resultsCard.classList.add('hidden');
+
+    const expSection = document.getElementById('explanation-section');
+    if (expSection) expSection.classList.add('hidden');
+
+    const expBreakdown = document.getElementById('explanation-breakdown');
+    if (expBreakdown) expBreakdown.innerHTML = '';
+
+    const scoreDisplay = document.getElementById('survival-score');
+    if (scoreDisplay) {
+        scoreDisplay.innerText = '--%';
+        scoreDisplay.style.color = '#1e2d3c';
+    }
 }
 
 // --- 4. PREDICTOR ENGINE CONTROLLER ---
