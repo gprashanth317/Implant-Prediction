@@ -7,20 +7,22 @@ changeBackground('loginpage.jpg');
 // --- 1. ACCESS VALIDATION & SERVER AUTHENTICATION ---
 function toggleLoginCard(cardType) {
     const loginCard = document.querySelector('.card.login-card');
+    const googleCard = document.getElementById('google-email-card');
     const setupCard = document.getElementById('google-setup-card');
     const forgotCard = document.getElementById('forgot-password-card');
 
-    if (cardType === 'setup') {
-        loginCard.classList.add('hidden');
-        forgotCard.classList.add('hidden');
+    loginCard.classList.add('hidden');
+    googleCard.classList.add('hidden');
+    setupCard.classList.add('hidden');
+    forgotCard.classList.add('hidden');
+
+    if (cardType === 'google') {
+        googleCard.classList.remove('hidden');
+    } else if (cardType === 'setup') {
         setupCard.classList.remove('hidden');
     } else if (cardType === 'forgot') {
-        loginCard.classList.add('hidden');
-        setupCard.classList.add('hidden');
         forgotCard.classList.remove('hidden');
     } else {
-        setupCard.classList.add('hidden');
-        forgotCard.classList.add('hidden');
         loginCard.classList.remove('hidden');
     }
 }
@@ -51,16 +53,19 @@ document.getElementById('login-form').addEventListener('submit', async function(
     }
 });
 
-document.getElementById('google-login-btn').addEventListener('click', async function() {
-    const mockGoogleEmail = prompt("Google Identity Sign-In\nEnter your Google Email address:", "doctor.sarah@clinic.com");
-    if (!mockGoogleEmail) return;
-    const mockGoogleName = prompt("Enter your Name:", "Dr. Sarah Smith") || "Doctor User";
+document.getElementById('google-email-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const email = document.getElementById('google-input-email').value.trim();
+    const name = document.getElementById('google-input-name').value.trim();
+    const errorDiv = document.getElementById('google-auth-error');
+
+    errorDiv.classList.add('hidden');
 
     try {
         const response = await fetch('/auth/google', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: mockGoogleName, email: mockGoogleEmail })
+            body: JSON.stringify({ name: name, email: email })
         });
 
         const result = await response.json();
@@ -72,10 +77,12 @@ document.getElementById('google-login-btn').addEventListener('click', async func
             document.getElementById('setup-username').value = result.email.split('@')[0];
             toggleLoginCard('setup');
         } else {
-            alert(`Authentication Error: ${result.message}`);
+            errorDiv.textContent = result.message || 'Authentication error.';
+            errorDiv.classList.remove('hidden');
         }
     } catch (err) {
-        alert("Server connection error during Google sign-in.");
+        errorDiv.textContent = 'Server connection error during Google sign-in.';
+        errorDiv.classList.remove('hidden');
     }
 });
 
@@ -93,12 +100,11 @@ document.getElementById('google-setup-form').addEventListener('submit', async fu
         const response = await fetch('/auth/complete_setup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, name, username, password })
+            body: JSON.stringify({ email: email, name: name, username: username, password: password })
         });
 
         const result = await response.json();
         if (response.ok && result.status === 'success') {
-            alert(result.message);
             successfulAuthTransition();
         } else {
             errorDiv.textContent = result.message || 'Setup failed.';
@@ -596,6 +602,76 @@ document.getElementById('password-change-form').addEventListener('submit', async
         msgDiv.style.color = '#c62828';
         msgDiv.textContent = '❌ Communication error.';
         msgDiv.classList.remove('hidden');
+    }
+});
+
+function toggleProfileForgotForm(show) {
+    const pwContainer = document.getElementById('password-change-container');
+    const pfContainer = document.getElementById('profile-forgot-container');
+    const pfMsg = document.getElementById('pf-msg');
+
+    pfMsg.classList.add('hidden');
+    pfMsg.textContent = '';
+
+    if (show) {
+        pwContainer.classList.add('hidden');
+        pfContainer.classList.remove('hidden');
+        const userEmail = document.getElementById('profile-email').textContent;
+        document.getElementById('pf-email').value = (userEmail && !userEmail.includes('Loading')) ? userEmail : '';
+        document.getElementById('pf-new-pw').value = '';
+        document.getElementById('pf-confirm-pw').value = '';
+    } else {
+        pfContainer.classList.add('hidden');
+        pwContainer.classList.remove('hidden');
+    }
+}
+
+document.getElementById('profile-forgot-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const email = document.getElementById('pf-email').value;
+    const newPw = document.getElementById('pf-new-pw').value;
+    const confirmPw = document.getElementById('pf-confirm-pw').value;
+    const pfMsg = document.getElementById('pf-msg');
+
+    pfMsg.classList.add('hidden');
+
+    if (newPw !== confirmPw) {
+        pfMsg.style.color = '#c62828';
+        pfMsg.textContent = '❌ New password and confirmation do not match.';
+        pfMsg.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        const response = await fetch('/auth/forgot_password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: email,
+                new_password: newPw,
+                confirm_password: confirmPw
+            })
+        });
+
+        const result = await response.json();
+        if (response.ok && result.status === 'success') {
+            pfMsg.style.color = '#2e7d32';
+            pfMsg.textContent = '✅ ' + result.message;
+            pfMsg.classList.remove('hidden');
+
+            setTimeout(() => {
+                toggleProfileForgotForm(false);
+                togglePasswordModal(false);
+            }, 1500);
+        } else {
+            pfMsg.style.color = '#c62828';
+            pfMsg.textContent = '❌ ' + (result.message || 'Password reset failed.');
+            pfMsg.classList.remove('hidden');
+        }
+    } catch (err) {
+        pfMsg.style.color = '#c62828';
+        pfMsg.textContent = '❌ Communication error.';
+        pfMsg.classList.remove('hidden');
     }
 });
 
