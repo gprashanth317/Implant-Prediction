@@ -95,11 +95,18 @@ async function loginWithFirebaseGoogle() {
             }
             return;
         } catch (error) {
-            console.warn("Firebase Google popup authentication:", error.message);
-            alert(`Firebase Google Login Error: ${error.message}`);
+            console.warn("Firebase Google popup authentication:", error.code, error.message);
+            if (error.code === 'auth/unauthorized-domain') {
+                alert(`⚠️ Domain Authorization Required in Firebase Console!\n\nTo allow login on 127.0.0.1:\n1. Go to https://console.firebase.google.com/project/implantpredict/authentication/settings\n2. Click 'Authorized domains' tab\n3. Click 'Add domain' -> Type '127.0.0.1' and 'localhost' -> Click Add.\n\nOpening fallback Google Email Login below...`);
+                toggleLoginCard('google');
+            } else {
+                alert(`Firebase Google Login Error: ${error.message}`);
+                toggleLoginCard('google');
+            }
         }
+    } else {
+        toggleLoginCard('google');
     }
-    toggleLoginCard('google');
 }
 
 document.getElementById('google-email-form').addEventListener('submit', async function(e) {
