@@ -61,21 +61,7 @@ async function loginWithFirebaseGoogle() {
             const googleEmail = user.email;
             const googleName = user.displayName || 'Doctor User';
 
-            // Sync user account profile to Firebase Firestore Cloud Database
-            if (firebaseDB) {
-                try {
-                    await firebaseDB.collection('users').doc(user.uid).set({
-                        uid: user.uid,
-                        email: googleEmail,
-                        name: googleName,
-                        lastLogin: firebase.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
-                    console.log("🔥 User profile saved directly to Firebase Firestore Cloud Database!");
-                } catch (fsErr) {
-                    console.warn("Firestore profile sync warning:", fsErr);
-                }
-            }
-
+            // Authenticate session with backend FIRST
             const response = await fetch('/auth/google', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -85,24 +71,27 @@ async function loginWithFirebaseGoogle() {
             const result = await response.json();
             if (response.ok && result.status === 'success') {
                 successfulAuthTransition();
-            } else if (result.status === 'setup_required') {
-                document.getElementById('setup-email').value = result.email;
-                document.getElementById('setup-name').value = result.name;
-                document.getElementById('setup-username').value = result.email.split('@')[0];
-                toggleLoginCard('setup');
+
+                // Background non-blocking Firestore Cloud DB sync
+                if (firebaseDB) {
+                    firebaseDB.collection('users').doc(user.uid).set({
+                        uid: user.uid,
+                        email: googleEmail,
+                        name: googleName,
+                        lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true }).catch(err => console.warn("Firestore sync warning:", err));
+                }
             } else {
-                alert(`Firebase Auth Error: ${result.message}`);
+                alert(`Authentication error: ${result.message}`);
+                toggleLoginCard('google');
             }
             return;
         } catch (error) {
             console.warn("Firebase Google popup authentication:", error.code, error.message);
             if (error.code === 'auth/unauthorized-domain') {
-                alert(`⚠️ Domain Authorization Required in Firebase Console!\n\nTo allow login on 127.0.0.1:\n1. Go to https://console.firebase.google.com/project/implantpredict/authentication/settings\n2. Click 'Authorized domains' tab\n3. Click 'Add domain' -> Type '127.0.0.1' and 'localhost' -> Click Add.\n\nOpening fallback Google Email Login below...`);
-                toggleLoginCard('google');
-            } else {
-                alert(`Firebase Google Login Error: ${error.message}`);
-                toggleLoginCard('google');
+                alert(`⚠️ Domain Authorization Required in Firebase Console!\n\nPlease add your local IP/domain (e.g. 127.0.0.1 or 10.137.146.140) to Firebase Console -> Authentication -> Settings -> Authorized Domains.\n\nOpening Google Email Login below...`);
             }
+            toggleLoginCard('google');
         }
     } else {
         toggleLoginCard('google');
