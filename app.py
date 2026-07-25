@@ -55,6 +55,17 @@ class PatientHistory(db.Model):
     patient_name = db.Column(db.String(150), nullable=False)
     date = db.Column(db.String(50), nullable=False)
     age = db.Column(db.Integer, nullable=False)
+    gender = db.Column(db.String(20), nullable=True, default='Male')
+    smoking_status = db.Column(db.String(50), nullable=True, default='Non-smoker')
+    diabetes = db.Column(db.String(10), nullable=True, default='no')
+    history_periodontitis = db.Column(db.String(10), nullable=True, default='no')
+    bruxism = db.Column(db.String(10), nullable=True, default='no')
+    oral_hygiene = db.Column(db.String(50), nullable=True, default='Good')
+    bone_quality = db.Column(db.String(50), nullable=True, default='Type 2')
+    jaw_location = db.Column(db.String(50), nullable=True, default='Maxilla')
+    implant_length_mm = db.Column(db.Float, nullable=True, default=10.0)
+    implant_diameter_mm = db.Column(db.Float, nullable=True, default=4.0)
+    implant_surface = db.Column(db.String(50), nullable=True, default='Roughened')
     score = db.Column(db.Float, nullable=False)
 
 with app.app_context():
@@ -377,25 +388,37 @@ def predict():
         
         # 2. Extract and format clinical variables
         age = int(data.get('age', 50))
-        gender = 0 if data.get('gender') == 'Male' else 1
+        gender_raw = data.get('gender', 'Male')
+        gender = 0 if gender_raw == 'Male' else 1
         
+        smoking_status = data.get('smoking_status', 'Non-smoker')
         smoke_map = {'Non-smoker': 0, 'Former': 1, 'Active': 2}
-        smoking = smoke_map.get(data.get('smoking_status'), 0)
+        smoking = smoke_map.get(smoking_status, 0)
         
-        diabetes = 1 if data.get('diabetes') == 'yes' else 0
-        perio = 1 if data.get('history_periodontitis') == 'yes' else 0
-        bruxism = 1 if data.get('bruxism') == 'yes' else 0
+        diabetes_raw = data.get('diabetes', 'no')
+        diabetes = 1 if diabetes_raw == 'yes' else 0
+
+        perio_raw = data.get('history_periodontitis', 'no')
+        perio = 1 if perio_raw == 'yes' else 0
+
+        bruxism_raw = data.get('bruxism', 'no')
+        bruxism = 1 if bruxism_raw == 'yes' else 0
         
+        hygiene_status = data.get('oral_hygiene', 'Good')
         hygiene_map = {'Good': 0, 'Fair': 1, 'Poor': 2}
-        hygiene = hygiene_map.get(data.get('oral_hygiene'), 0)
+        hygiene = hygiene_map.get(hygiene_status, 0)
         
+        bone_quality_status = data.get('bone_quality', 'Type 2')
         bone_map = {'Type 1': 1, 'Type 2': 2, 'Type 3': 3, 'Type 4': 4}
-        bone = bone_map.get(data.get('bone_quality'), 2)
+        bone = bone_map.get(bone_quality_status, 2)
         
-        jaw = 0 if data.get('jaw_location') == 'Maxilla' else 1
+        jaw_location_status = data.get('jaw_location', 'Maxilla')
+        jaw = 0 if jaw_location_status == 'Maxilla' else 1
+
         length = float(data.get('implant_length_mm', 10.0))
         diameter = float(data.get('implant_diameter_mm', 4.0))
-        surface = 0 if data.get('implant_surface') == 'Machined' else 1
+        surface_status = data.get('implant_surface', 'Roughened')
+        surface = 0 if surface_status == 'Machined' else 1
 
         # 3. Features matrix for prediction
         features = np.array([[age, gender, smoking, diabetes, perio, bruxism, hygiene, bone, jaw, length, diameter, surface]])
@@ -430,7 +453,7 @@ def predict():
 
         final_score = round(survival_probability, 1)
 
-        # 4. Save to Database linked to current logged-in user
+        # 4. Save to Database linked to current logged-in user with FULL clinical parameters
         user_id = session.get('user_id')
         new_record = PatientHistory(
             user_id=user_id,
@@ -438,6 +461,17 @@ def predict():
             patient_name=patient_name,
             date=datetime.now().strftime("%Y-%m-%d %H:%M"),
             age=age,
+            gender=gender_raw,
+            smoking_status=smoking_status,
+            diabetes=diabetes_raw,
+            history_periodontitis=perio_raw,
+            bruxism=bruxism_raw,
+            oral_hygiene=hygiene_status,
+            bone_quality=bone_quality_status,
+            jaw_location=jaw_location_status,
+            implant_length_mm=length,
+            implant_diameter_mm=diameter,
+            implant_surface=surface_status,
             score=final_score
         )
         db.session.add(new_record)
@@ -459,9 +493,21 @@ def get_history():
     for record in records:
         history_data.append({
             "id": record.id,
+            "patient_id": record.patient_id or "N/A",
             "patient_name": record.patient_name,
             "date": record.date,
             "age": record.age,
+            "gender": record.gender or "Male",
+            "smoking_status": record.smoking_status or "Non-smoker",
+            "diabetes": record.diabetes or "no",
+            "history_periodontitis": record.history_periodontitis or "no",
+            "bruxism": record.bruxism or "no",
+            "oral_hygiene": record.oral_hygiene or "Good",
+            "bone_quality": record.bone_quality or "Type 2",
+            "jaw_location": record.jaw_location or "Maxilla",
+            "implant_length_mm": record.implant_length_mm or 10.0,
+            "implant_diameter_mm": record.implant_diameter_mm or 4.0,
+            "implant_surface": record.implant_surface or "Roughened",
             "score": record.score
         })
     return jsonify(history_data)

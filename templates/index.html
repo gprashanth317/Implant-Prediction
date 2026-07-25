@@ -313,10 +313,22 @@
             <div id="history-page" class="view-section hidden">
                 <header>
                     <h1>Prediction History</h1>
-                    <p class="subtitle">Stored database records of past patient evaluations.</p>
+                    <p class="subtitle">Stored database records of past patient evaluations. Click any patient name to view full clinical details.</p>
                 </header>
                 <div class="card">
                     <ul id="history-list" class="history-list"></ul>
+                </div>
+
+                <!-- Detailed Patient Info Modal/Card -->
+                <div id="patient-details-modal" class="card hidden" style="margin-top: 20px; background: #ffffff; padding: 25px; border-radius: 12px; border: 2px solid #1e2d3c; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,0.15);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 20px;">
+                        <h2 id="modal-patient-name" style="margin: 0; color: #1e2d3c; font-size: 1.6rem; border: none;">📋 Patient Details</h2>
+                        <button type="button" onclick="closePatientModal()" style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.95rem;">✕ Close Details</button>
+                    </div>
+                    
+                    <div id="modal-patient-body">
+                        <!-- Rendered dynamically -->
+                    </div>
                 </div>
             </div>
         </div>

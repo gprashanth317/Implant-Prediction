@@ -352,10 +352,11 @@ document.getElementById('predictor-form').addEventListener('submit', async funct
 });
 
 // --- 5. HISTORY & REMOVAL ACTIONS ---
+let cachedHistoryData = [];
+
 async function fetchHistory() {
     const listElement = document.getElementById('history-list');
-    listElement.innerHTML = '<li style="color:#000;">Processing local records...</li>';
-
+    closePatientModal();
     try {
         const response = await fetch('/get_history');
         
@@ -365,33 +366,114 @@ async function fetchHistory() {
             return;
         }
 
-        const historyData = await response.json();
+        cachedHistoryData = await response.json();
         listElement.innerHTML = '';
 
-        if (!Array.isArray(historyData) || historyData.length === 0) {
-            listElement.innerHTML = '<li style="color:#000;">No historic entries recorded.</li>';
+        if (!Array.isArray(cachedHistoryData) || cachedHistoryData.length === 0) {
+            listElement.innerHTML = '<li style="color:#000; text-align: center; padding: 20px;">No historic entries recorded yet.</li>';
             return;
         }
 
-        historyData.slice().reverse().forEach(item => {
+        cachedHistoryData.slice().reverse().forEach(item => {
             const li = document.createElement('li');
+            li.style.display = 'flex';
+            li.style.justifyContent = 'space-between';
+            li.style.alignItems = 'center';
+            li.style.padding = '15px 20px';
+            li.style.marginBottom = '12px';
+            li.style.background = '#f8f9fa';
+            li.style.borderRadius = '8px';
+            li.style.border = '1px solid #e2e8f0';
+
             li.innerHTML = `
-                <span style="color:#111;">
-                    <strong>${item.patient_name}</strong> | Age: ${item.age} <br>
-                    <small style="color:#7f8c8d;">${item.date}</small>
-                </span>
+                <div style="text-align: left;">
+                    <a href="javascript:void(0)" onclick="showPatientDetails(${item.id})" style="color: #1e2d3c; text-decoration: none; font-size: 1.15rem; font-weight: bold; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='#2980b9'" onmouseout="this.style.color='#1e2d3c'">
+                        👤 ${item.patient_name} <span style="font-size: 0.85rem; color: #7f8c8d; font-weight: normal;">(ID: ${item.patient_id})</span> 🔍
+                    </a>
+                    <div style="color: #7f8c8d; font-size: 0.85rem; margin-top: 4px;">
+                        📅 Evaluated: ${item.date} | Age: ${item.age} yrs | ${item.gender}
+                    </div>
+                </div>
                 <div style="display: flex; align-items: center; gap: 15px;">
-                    <span style="font-weight: bold; font-size: 1.2rem; color: ${item.score >= 90 ? 'green' : (item.score >= 80 ? 'orange' : 'red')};">
+                    <span style="font-weight: bold; font-size: 1.25rem; padding: 6px 12px; border-radius: 6px; background: #fff; border: 1px solid #ddd; color: ${item.score >= 90 ? '#27ae60' : (item.score >= 80 ? '#d35400' : '#c62828')};">
                         ${item.score}%
                     </span>
-                    <button class="btn-delete" onclick="deleteRecord(${item.id})">🗑️</button>
+                    <button class="btn-delete" onclick="deleteRecord(${item.id})" title="Delete Record" style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">🗑️</button>
                 </div>
             `;
             listElement.appendChild(li);
         });
     } catch (error) {
-        listElement.innerHTML = '<li style="color:red;">Failed to load patient history.</li>';
+        listElement.innerHTML = '<li style="color:red; text-align: center;">Failed to load patient history.</li>';
     }
+}
+
+function showPatientDetails(recordId) {
+    const item = cachedHistoryData.find(r => r.id === recordId);
+    if (!item) return;
+
+    const modal = document.getElementById('patient-details-modal');
+    const modalTitle = document.getElementById('modal-patient-name');
+    const modalBody = document.getElementById('modal-patient-body');
+
+    modalTitle.innerHTML = `📋 ${item.patient_name} <span style="font-size: 1rem; color: #7f8c8d;">(Patient ID: ${item.patient_id})</span>`;
+
+    const scoreColor = item.score >= 90 ? '#27ae60' : (item.score >= 80 ? '#d35400' : '#c62828');
+
+    modalBody.innerHTML = `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+            <!-- Patient Demographics & Assessment Card -->
+            <div style="background: #f8f9fa; padding: 18px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <h3 style="margin-top:0; color: #1e2d3c; font-size: 1.1rem; margin-bottom: 12px; border-bottom: 1px solid #ddd; padding-bottom: 6px;">👤 Patient Information</h3>
+                <p style="margin-bottom: 8px; color: #333;"><strong>Full Name:</strong> ${item.patient_name}</p>
+                <p style="margin-bottom: 8px; color: #333;"><strong>Patient ID:</strong> ${item.patient_id}</p>
+                <p style="margin-bottom: 8px; color: #333;"><strong>Evaluation Date:</strong> ${item.date}</p>
+                <p style="margin-bottom: 8px; color: #333;"><strong>Age:</strong> ${item.age} years old</p>
+                <p style="margin-bottom: 0; color: #333;"><strong>Gender:</strong> ${item.gender}</p>
+            </div>
+
+            <!-- Survival Score Prognosis Card -->
+            <div style="background: #f8f9fa; padding: 18px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                <h3 style="margin-top:0; color: #1e2d3c; font-size: 1.1rem; margin-bottom: 10px;">📊 Calculated 10-Year Survival Score</h3>
+                <div style="font-size: 3rem; font-weight: bold; color: ${scoreColor}; margin-bottom: 5px;">
+                    ${item.score}%
+                </div>
+                <div style="font-size: 0.9rem; color: #555; font-weight: 500;">
+                    ${item.score >= 90 ? '🟢 Excellent Prognosis' : (item.score >= 80 ? '🟠 Moderate Prognosis' : '🔴 High Risk Profile')}
+                </div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <!-- Clinical & Systemic Risk Factors -->
+            <div style="background: #f8f9fa; padding: 18px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <h3 style="margin-top:0; color: #1e2d3c; font-size: 1.1rem; margin-bottom: 12px; border-bottom: 1px solid #ddd; padding-bottom: 6px;">🩺 Clinical & Systemic Factors</h3>
+                <p style="margin-bottom: 8px; color: #333;"><strong>Smoking Status:</strong> ${item.smoking_status}</p>
+                <p style="margin-bottom: 8px; color: #333;"><strong>Diabetes Mellitus:</strong> ${item.diabetes === 'yes' ? '⚠️ Yes (Present)' : '✅ No'}</p>
+                <p style="margin-bottom: 8px; color: #333;"><strong>History of Periodontitis:</strong> ${item.history_periodontitis === 'yes' ? '⚠️ Yes (Present)' : '✅ No'}</p>
+                <p style="margin-bottom: 8px; color: #333;"><strong>Bruxism / Parafunction:</strong> ${item.bruxism === 'yes' ? '⚠️ Yes (Present)' : '✅ No'}</p>
+                <p style="margin-bottom: 0; color: #333;"><strong>Oral Hygiene Index:</strong> ${item.oral_hygiene}</p>
+            </div>
+
+            <!-- Anatomical & Implant Parameters -->
+            <div style="background: #f8f9fa; padding: 18px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <h3 style="margin-top:0; color: #1e2d3c; font-size: 1.1rem; margin-bottom: 12px; border-bottom: 1px solid #ddd; padding-bottom: 6px;">🦴 Anatomical & Implant Specs</h3>
+                <p style="margin-bottom: 8px; color: #333;"><strong>Bone Quality:</strong> ${item.bone_quality}</p>
+                <p style="margin-bottom: 8px; color: #333;"><strong>Jaw Site Location:</strong> ${item.jaw_location}</p>
+                <p style="margin-bottom: 8px; color: #333;"><strong>Implant Length:</strong> ${item.implant_length_mm} mm</p>
+                <p style="margin-bottom: 8px; color: #333;"><strong>Implant Diameter:</strong> ${item.implant_diameter_mm} mm</p>
+                <p style="margin-bottom: 0; color: #333;"><strong>Implant Surface Type:</strong> ${item.implant_surface}</p>
+            </div>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+    modal.scrollIntoView({ behavior: 'smooth' });
+}
+
+function closePatientModal() {
+    const modal = document.getElementById('patient-details-modal');
+    if (modal) modal.classList.add('hidden');
 }
 
 async function deleteRecord(recordId) {
@@ -406,8 +488,12 @@ async function deleteRecord(recordId) {
         }
 
         const result = await response.json();
-        if (result.status === 'success') fetchHistory(); 
-        else alert(`Execution failed: ${result.message}`);
+        if (result.status === 'success') {
+            closePatientModal();
+            fetchHistory();
+        } else {
+            alert(`Execution failed: ${result.message}`);
+        }
     } catch (error) {
         alert(`Communication exception encountered: ${error.message}`);
     }
