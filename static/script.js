@@ -61,6 +61,21 @@ async function loginWithFirebaseGoogle() {
             const googleEmail = user.email;
             const googleName = user.displayName || 'Doctor User';
 
+            // Sync user account profile to Firebase Firestore Cloud Database
+            if (firebaseDB) {
+                try {
+                    await firebaseDB.collection('users').doc(user.uid).set({
+                        uid: user.uid,
+                        email: googleEmail,
+                        name: googleName,
+                        lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                    console.log("🔥 User profile saved directly to Firebase Firestore Cloud Database!");
+                } catch (fsErr) {
+                    console.warn("Firestore profile sync warning:", fsErr);
+                }
+            }
+
             const response = await fetch('/auth/google', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -81,6 +96,7 @@ async function loginWithFirebaseGoogle() {
             return;
         } catch (error) {
             console.warn("Firebase Google popup authentication:", error.message);
+            alert(`Firebase Google Login Error: ${error.message}`);
         }
     }
     toggleLoginCard('google');
@@ -388,6 +404,19 @@ document.getElementById('predictor-form').addEventListener('submit', async funct
                 implant_surface: formData.implant_surface,
                 score: result.survival_probability
             };
+
+            // Save evaluation record directly into Firebase Firestore Cloud Database
+            if (typeof firebaseDB !== 'undefined' && firebaseDB) {
+                try {
+                    await firebaseDB.collection('patient_history').add({
+                        ...lastPredictionItem,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    console.log("🔥 Patient evaluation saved directly to Firebase Firestore Cloud Database!");
+                } catch (fsErr) {
+                    console.warn("Firestore patient history save warning:", fsErr);
+                }
+            }
 
             document.getElementById('results-card').classList.remove('hidden');
             document.getElementById('results-card').scrollIntoView({ behavior: 'smooth' });

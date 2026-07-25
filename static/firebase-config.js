@@ -11,12 +11,13 @@
 // ============================================================================
 
 const firebaseConfig = {
-    apiKey: "YOUR_FIREBASE_API_KEY",
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT.appspot.com",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyChOhB4PzbZ-5hmvxF8wfkBrUPNVrKa3M4",
+  authDomain: "implantpredict.firebaseapp.com",
+  projectId: "implantpredict",
+  storageBucket: "implantpredict.firebasestorage.app",
+  messagingSenderId: "481525869578",
+  appId: "1:481525869578:web:acb217e96f8ed16b4703f3",
+  measurementId: "G-92GNPMYTEX"
 };
 
 // Initialize Firebase App SDK
