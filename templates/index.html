@@ -12,6 +12,7 @@
     <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='ai.jpg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='ai.jpg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -98,6 +99,7 @@
             <a href="javascript:void(0)" onclick="showPage('home-page')">🏠 Home</a>
             <a href="javascript:void(0)" onclick="showPage('predict-page')">⚙️ Implant Prediction</a>
             <a href="javascript:void(0)" onclick="showPage('history-page'); fetchHistory();">📋 View History</a>
+            <a href="javascript:void(0)" onclick="showPage('analytics-page'); renderAnalyticsDashboard();">📊 Analytics Dashboard</a>
             <a href="javascript:void(0)" onclick="logout()" class="logout-link">🚪 Logout</a>
         </div>
 
@@ -307,13 +309,17 @@
                         <div id="explanation-breakdown">
                         </div>
                     </div>
+
+                    <div style="margin-top: 20px; text-align: center;">
+                        <button type="button" class="btn-primary" onclick="downloadCurrentPredictionPDF()" style="background: #27ae60; font-size: 1rem; padding: 10px 24px;">📄 Download PDF Clinical Report</button>
+                    </div>
                 </section>
             </div>
 
             <div id="history-page" class="view-section hidden">
                 <header>
                     <h1>Prediction History</h1>
-                    <p class="subtitle">Stored database records of past patient evaluations. Click any patient name to view full clinical details.</p>
+                    <p class="subtitle">Stored database records of past patient evaluations. Click any patient name to view full details or download PDF reports.</p>
                 </header>
                 <div class="card">
                     <ul id="history-list" class="history-list"></ul>
@@ -321,14 +327,74 @@
 
                 <!-- Detailed Patient Info Modal/Card -->
                 <div id="patient-details-modal" class="card hidden" style="margin-top: 20px; background: #ffffff; padding: 25px; border-radius: 12px; border: 2px solid #1e2d3c; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,0.15);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                         <h2 id="modal-patient-name" style="margin: 0; color: #1e2d3c; font-size: 1.6rem; border: none;">📋 Patient Details</h2>
-                        <button type="button" onclick="closePatientModal()" style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.95rem;">✕ Close Details</button>
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" id="modal-pdf-btn" onclick="downloadModalPDF()" style="background: #27ae60; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.95rem;">📄 Download PDF Report</button>
+                            <button type="button" onclick="closePatientModal()" style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.95rem;">✕ Close Details</button>
+                        </div>
                     </div>
                     
                     <div id="modal-patient-body">
                         <!-- Rendered dynamically -->
                     </div>
+                </div>
+            </div>
+
+            <!-- Analytics Dashboard Section -->
+            <div id="analytics-page" class="view-section hidden">
+                <header>
+                    <h1>Clinical Analytics & Risk Stratification</h1>
+                    <p class="subtitle">Real-time breakdown of evaluated patient risk profiles and survival statistics.</p>
+                </header>
+
+                <!-- Stat Cards Grid -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-bottom: 25px;">
+                    <div class="card" style="text-align: center; padding: 20px; border-left: 5px solid #2980b9;">
+                        <div style="font-size: 2.2rem; font-weight: bold; color: #1e2d3c;" id="analytics-total-count">0</div>
+                        <div style="color: #7f8c8d; font-weight: 500; margin-top: 5px;">👥 Total Patients Evaluated</div>
+                    </div>
+                    <div class="card" style="text-align: center; padding: 20px; border-left: 5px solid #27ae60;">
+                        <div style="font-size: 2.2rem; font-weight: bold; color: #27ae60;" id="analytics-low-risk-count">0</div>
+                        <div style="color: #27ae60; font-weight: 500; margin-top: 5px;">🟢 Low Risk (≥90% Score)</div>
+                    </div>
+                    <div class="card" style="text-align: center; padding: 20px; border-left: 5px solid #d35400;">
+                        <div style="font-size: 2.2rem; font-weight: bold; color: #d35400;" id="analytics-med-risk-count">0</div>
+                        <div style="color: #d35400; font-weight: 500; margin-top: 5px;">🟠 Medium Risk (80-89% Score)</div>
+                    </div>
+                    <div class="card" style="text-align: center; padding: 20px; border-left: 5px solid #c62828;">
+                        <div style="font-size: 2.2rem; font-weight: bold; color: #c62828;" id="analytics-high-risk-count">0</div>
+                        <div style="color: #c62828; font-weight: 500; margin-top: 5px;">🔴 High Risk (&lt;80% Score)</div>
+                    </div>
+                </div>
+
+                <!-- Visual Risk Breakdown Progress Bar -->
+                <div class="card" style="margin-bottom: 25px; padding: 25px; text-align: left;">
+                    <h3 style="margin-top:0; color: #1e2d3c; font-size: 1.2rem; margin-bottom: 15px;">📊 Risk Stratification Breakdown</h3>
+                    <div style="height: 24px; width: 100%; background: #e2e8f0; border-radius: 12px; overflow: hidden; display: flex; margin-bottom: 15px;">
+                        <div id="bar-low-risk" style="width: 0%; background: #27ae60; height: 100%; transition: width 0.5s;" title="Low Risk"></div>
+                        <div id="bar-med-risk" style="width: 0%; background: #d35400; height: 100%; transition: width 0.5s;" title="Medium Risk"></div>
+                        <div id="bar-high-risk" style="width: 0%; background: #c62828; height: 100%; transition: width 0.5s;" title="High Risk"></div>
+                    </div>
+                    <div style="display: flex; gap: 20px; font-size: 0.9rem; justify-content: center; flex-wrap: wrap;">
+                        <span><strong style="color: #27ae60;">■ Low Risk:</strong> <span id="pct-low-risk">0%</span></span>
+                        <span><strong style="color: #d35400;">■ Medium Risk:</strong> <span id="pct-med-risk">0%</span></span>
+                        <span><strong style="color: #c62828;">■ High Risk:</strong> <span id="pct-high-risk">0%</span></span>
+                    </div>
+                </div>
+
+                <!-- Classified Patient Directory & Filter Tabs -->
+                <div class="card" style="padding: 25px; text-align: left;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
+                        <h3 style="margin: 0; color: #1e2d3c; font-size: 1.2rem; border:none;">📋 Classified Patient Directory</h3>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button type="button" id="tab-all" class="btn-primary filter-tab" onclick="filterAnalyticsCategory('all')" style="padding: 6px 14px; font-size: 0.85rem; background: #1e2d3c;">All Patients</button>
+                            <button type="button" id="tab-low" class="btn-primary filter-tab" onclick="filterAnalyticsCategory('low')" style="padding: 6px 14px; font-size: 0.85rem; background: #27ae60;">🟢 Low Risk</button>
+                            <button type="button" id="tab-med" class="btn-primary filter-tab" onclick="filterAnalyticsCategory('medium')" style="padding: 6px 14px; font-size: 0.85rem; background: #d35400;">🟠 Medium Risk</button>
+                            <button type="button" id="tab-high" class="btn-primary filter-tab" onclick="filterAnalyticsCategory('high')" style="padding: 6px 14px; font-size: 0.85rem; background: #c62828;">🔴 High Risk</button>
+                        </div>
+                    </div>
+                    <ul id="analytics-patient-list" class="history-list" style="padding-left:0; list-style:none;"></ul>
                 </div>
             </div>
         </div>
