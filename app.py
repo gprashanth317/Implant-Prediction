@@ -198,7 +198,7 @@ def google_auth():
             print(f"Firebase user sync warning: {fe}")
 
     # Require password setup for first-time Google logins
-    if not user.is_registered or not user.password or user.password == '':
+    if not user.is_registered or not user.password or user.password == '' or user.password in ['google_authenticated_user', 'google_temp_password']:
         return jsonify({
             "status": "setup_required",
             "message": "First time Google login. Please set up your Username/Email ID and Password.",
