@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, send_from_directory
+from flask import Flask, render_template, request, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
@@ -38,9 +38,11 @@ db = SQLAlchemy(app)
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(150), unique=True, nullable=False)
+    username = db.Column(db.String(150), unique=True, nullable=True)
     name = db.Column(db.String(150), nullable=False)
     joined_date = db.Column(db.String(50), nullable=False)
     password = db.Column(db.String(255), nullable=False, default='password')
+    is_registered = db.Column(db.Boolean, default=True)
     specialty = db.Column(db.String(150), nullable=True, default='Maxillofacial Surgeon')
     clinic_name = db.Column(db.String(150), nullable=True, default='City Dental & Surgical Center')
     license_number = db.Column(db.String(100), nullable=True, default='REG-8849201')
@@ -48,6 +50,7 @@ class User(db.Model):
 
 class PatientHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     patient_id = db.Column(db.String(50), nullable=False)
     patient_name = db.Column(db.String(150), nullable=False)
     date = db.Column(db.String(50), nullable=False)
@@ -89,36 +92,37 @@ def home():
 @app.route('/auth/login', methods=['POST'])
 def login():
     data = request.json or {}
-    username = data.get('username', '').strip()
+    user_input = data.get('username', '').strip()
     password = data.get('password', '').strip()
 
-    user = User.query.filter((User.email == username) | (User.name == username)).first()
+    user = User.query.filter((User.username == user_input) | (User.email == user_input)).first()
     
     # Fallback default admin user initialization
-    if not user and (username == 'admin' or username == 'admin@clinicalportal.com'):
-        user = User.query.filter_by(email='admin@clinicalportal.com').first()
-        if not user:
-            user = User(
-                email='admin@clinicalportal.com',
-                name='System Administrator',
-                password='password',
-                joined_date=datetime.now().strftime("%Y-%m-%d"),
-                specialty='Maxillofacial Surgeon',
-                clinic_name='City Dental & Surgical Center',
-                license_number='REG-8849201'
-            )
-            db.session.add(user)
-            db.session.commit()
+    if not user and (user_input == 'admin' or user_input == 'admin@clinicalportal.com'):
+        user = User(
+            email='admin@clinicalportal.com',
+            username='admin',
+            name='System Administrator',
+            password='password',
+            joined_date=datetime.now().strftime("%Y-%m-%d"),
+            is_registered=True,
+            specialty='Maxillofacial Surgeon',
+            clinic_name='City Dental & Surgical Center',
+            license_number='REG-8849201'
+        )
+        db.session.add(user)
+        db.session.commit()
 
-    if user and (user.password == password or (password == 'password' and username == 'admin')):
+    if user and (user.password == password or (password == 'password' and user_input == 'admin')):
         session['user_id'] = user.id
         session['user_name'] = user.name
         session['user_email'] = user.email
+        session['user_username'] = user.username or user.email
         session['joined_date'] = user.joined_date
 
         return jsonify({"status": "success", "message": "Authenticated successfully."})
 
-    return jsonify({"status": "error", "message": "Invalid username or password."}), 401
+    return jsonify({"status": "error", "message": "Invalid username/email or password."}), 401
 
 @app.route('/auth/google', methods=['POST'])
 def google_auth():
@@ -126,17 +130,18 @@ def google_auth():
     email = data.get('email', '').strip()
     name = data.get('name', '').strip()
 
-    if not email or not name:
-        return jsonify({"status": "error", "message": "Email and name are required."}), 400
+    if not email:
+        return jsonify({"status": "error", "message": "Email is required."}), 400
 
     user = User.query.filter_by(email=email).first()
     
     if not user:
         user = User(
             email=email, 
-            name=name, 
-            password='google_authenticated',
+            name=name or 'Doctor User', 
+            password='google_temp_password',
             joined_date=datetime.now().strftime("%Y-%m-%d"),
+            is_registered=False,
             specialty='Dental Practitioner',
             clinic_name='Medical Center',
             license_number='REG-PENDING'
@@ -144,12 +149,83 @@ def google_auth():
         db.session.add(user)
         db.session.commit()
 
+    # Check if user needs username/password setup
+    if not user.is_registered or not user.username:
+        return jsonify({
+            "status": "setup_required",
+            "message": "First time Google login. Please set up your Username and Password.",
+            "email": user.email,
+            "name": user.name
+        })
+
     session['user_id'] = user.id
     session['user_name'] = user.name
     session['user_email'] = user.email
+    session['user_username'] = user.username
     session['joined_date'] = user.joined_date
 
     return jsonify({"status": "success", "message": "Google authentication verified."})
+
+@app.route('/auth/complete_setup', methods=['POST'])
+def complete_setup():
+    data = request.json or {}
+    email = data.get('email', '').strip()
+    desired_username = data.get('username', '').strip()
+    desired_password = data.get('password', '').strip()
+    full_name = data.get('name', '').strip()
+
+    if not email or not desired_username or not desired_password:
+        return jsonify({"status": "error", "message": "All setup fields are required."}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"status": "error", "message": "User record not found for email."}), 404
+
+    # Check if username is taken by another account
+    existing_username = User.query.filter(User.username == desired_username, User.id != user.id).first()
+    if existing_username:
+        return jsonify({"status": "error", "message": "Username is already taken. Please choose another."}), 400
+
+    user.username = desired_username
+    user.password = desired_password
+    if full_name:
+        user.name = full_name
+    user.is_registered = True
+    db.session.commit()
+
+    session['user_id'] = user.id
+    session['user_name'] = user.name
+    session['user_email'] = user.email
+    session['user_username'] = user.username
+    session['joined_date'] = user.joined_date
+
+    return jsonify({"status": "success", "message": "Account setup complete! You are now logged in."})
+
+@app.route('/auth/forgot_password', methods=['POST'])
+def forgot_password():
+    data = request.json or {}
+    email = data.get('email', '').strip()
+    new_password = data.get('new_password', '').strip()
+    confirm_password = data.get('confirm_password', '').strip()
+
+    if not email or not new_password or not confirm_password:
+        return jsonify({"status": "error", "message": "Email and new password fields are required."}), 400
+
+    if new_password != confirm_password:
+        return jsonify({"status": "error", "message": "New password and confirmation do not match."}), 400
+
+    if len(new_password) < 6:
+        return jsonify({"status": "error", "message": "Password must be at least 6 characters long."}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"status": "error", "message": "No account found with that email address."}), 404
+
+    user.password = new_password
+    user.is_registered = True
+    db.session.commit()
+
+    return jsonify({"status": "success", "message": "Password reset successfully! You can now log in."})
 
 @app.route('/auth/logout', methods=['POST'])
 def logout():
@@ -165,6 +241,7 @@ def get_profile():
             "status": "success",
             "name": session.get('user_name', 'Practitioner'),
             "email": session.get('user_email', 'doctor@clinic.com'),
+            "username": session.get('user_username', 'doctor'),
             "joined": session.get('joined_date', '2026-01-01'),
             "specialty": "Maxillofacial Surgeon",
             "clinic_name": "City Dental & Surgical Center",
@@ -178,6 +255,7 @@ def get_profile():
         "status": "success",
         "name": user.name,
         "email": user.email,
+        "username": user.username or user.email,
         "joined": user.joined_date,
         "specialty": user.specialty or "Maxillofacial Surgeon",
         "clinic_name": user.clinic_name or "City Dental & Surgical Center",
@@ -195,7 +273,6 @@ def update_profile():
         if not user:
             return jsonify({"status": "error", "message": "User record not found."}), 404
 
-        # Check if request contains json or multipart form data
         if request.content_type and 'multipart/form-data' in request.content_type:
             new_name = request.form.get('name', '').strip()
             new_email = request.form.get('email', '').strip()
@@ -243,6 +320,7 @@ def update_profile():
             "message": "Profile updated successfully.",
             "name": user.name,
             "email": user.email,
+            "username": user.username or user.email,
             "specialty": user.specialty,
             "clinic_name": user.clinic_name,
             "license_number": user.license_number,
@@ -352,8 +430,10 @@ def predict():
 
         final_score = round(survival_probability, 1)
 
-        # 4. Save to Database
+        # 4. Save to Database linked to current logged-in user
+        user_id = session.get('user_id')
         new_record = PatientHistory(
+            user_id=user_id,
             patient_id=patient_id,
             patient_name=patient_name,
             date=datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -373,7 +453,8 @@ def predict():
 @app.route('/get_history', methods=['GET'])
 @login_required
 def get_history():
-    records = PatientHistory.query.all()
+    user_id = session.get('user_id')
+    records = PatientHistory.query.filter((PatientHistory.user_id == user_id) | (PatientHistory.user_id == None)).all()
     history_data = []
     for record in records:
         history_data.append({
@@ -389,8 +470,11 @@ def get_history():
 @login_required
 def delete_history(record_id):
     try:
+        user_id = session.get('user_id')
         record = db.session.get(PatientHistory, record_id)
         if record:
+            if record.user_id and record.user_id != user_id:
+                return jsonify({'status': 'error', 'message': 'Unauthorized to delete this record.'}), 403
             db.session.delete(record)
             db.session.commit() 
             return jsonify({'status': 'success', 'message': 'Record successfully deleted.'})

@@ -5,6 +5,26 @@ function changeBackground(imageName) {
 changeBackground('loginpage.jpg');
 
 // --- 1. ACCESS VALIDATION & SERVER AUTHENTICATION ---
+function toggleLoginCard(cardType) {
+    const loginCard = document.querySelector('.card.login-card');
+    const setupCard = document.getElementById('google-setup-card');
+    const forgotCard = document.getElementById('forgot-password-card');
+
+    if (cardType === 'setup') {
+        loginCard.classList.add('hidden');
+        forgotCard.classList.add('hidden');
+        setupCard.classList.remove('hidden');
+    } else if (cardType === 'forgot') {
+        loginCard.classList.add('hidden');
+        setupCard.classList.add('hidden');
+        forgotCard.classList.remove('hidden');
+    } else {
+        setupCard.classList.add('hidden');
+        forgotCard.classList.add('hidden');
+        loginCard.classList.remove('hidden');
+    }
+}
+
 document.getElementById('login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const user = document.getElementById('username').value;
@@ -32,9 +52,9 @@ document.getElementById('login-form').addEventListener('submit', async function(
 });
 
 document.getElementById('google-login-btn').addEventListener('click', async function() {
-    const mockGoogleName = prompt("Simulating Google OAuth.\nWhat is your Name?", "Dr. Sarah Smith");
-    const mockGoogleEmail = prompt("What is your Google Email?", "sarah.smith@clinic.com");
-    if (!mockGoogleName || !mockGoogleEmail) return;
+    const mockGoogleEmail = prompt("Google Identity Sign-In\nEnter your Google Email address:", "doctor.sarah@clinic.com");
+    if (!mockGoogleEmail) return;
+    const mockGoogleName = prompt("Enter your Name:", "Dr. Sarah Smith") || "Doctor User";
 
     try {
         const response = await fetch('/auth/google', {
@@ -46,15 +66,100 @@ document.getElementById('google-login-btn').addEventListener('click', async func
         const result = await response.json();
         if (response.ok && result.status === 'success') {
             successfulAuthTransition();
+        } else if (result.status === 'setup_required') {
+            document.getElementById('setup-email').value = result.email;
+            document.getElementById('setup-name').value = result.name;
+            document.getElementById('setup-username').value = result.email.split('@')[0];
+            toggleLoginCard('setup');
         } else {
             alert(`Authentication Error: ${result.message}`);
         }
     } catch (err) {
-        alert("Server connection error during OAuth simulation.");
+        alert("Server connection error during Google sign-in.");
+    }
+});
+
+document.getElementById('google-setup-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const email = document.getElementById('setup-email').value;
+    const name = document.getElementById('setup-name').value;
+    const username = document.getElementById('setup-username').value;
+    const password = document.getElementById('setup-password').value;
+    const errorDiv = document.getElementById('setup-error');
+
+    errorDiv.classList.add('hidden');
+
+    try {
+        const response = await fetch('/auth/complete_setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, name, username, password })
+        });
+
+        const result = await response.json();
+        if (response.ok && result.status === 'success') {
+            alert(result.message);
+            successfulAuthTransition();
+        } else {
+            errorDiv.textContent = result.message || 'Setup failed.';
+            errorDiv.classList.remove('hidden');
+        }
+    } catch (err) {
+        errorDiv.textContent = 'Server connection error.';
+        errorDiv.classList.remove('hidden');
+    }
+});
+
+document.getElementById('forgot-password-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const email = document.getElementById('forgot-email').value;
+    const newPassword = document.getElementById('forgot-new-password').value;
+    const confirmPassword = document.getElementById('forgot-confirm-password').value;
+    const msgDiv = document.getElementById('forgot-msg');
+
+    msgDiv.classList.add('hidden');
+
+    if (newPassword !== confirmPassword) {
+        msgDiv.style.color = '#c62828';
+        msgDiv.textContent = '❌ New password and confirmation do not match.';
+        msgDiv.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        const response = await fetch('/auth/forgot_password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: email,
+                new_password: newPassword,
+                confirm_password: confirmPassword
+            })
+        });
+
+        const result = await response.json();
+        if (response.ok && result.status === 'success') {
+            msgDiv.style.color = '#2e7d32';
+            msgDiv.textContent = '✅ ' + result.message;
+            msgDiv.classList.remove('hidden');
+
+            setTimeout(() => {
+                toggleLoginCard('login');
+            }, 1800);
+        } else {
+            msgDiv.style.color = '#c62828';
+            msgDiv.textContent = '❌ ' + (result.message || 'Password reset failed.');
+            msgDiv.classList.remove('hidden');
+        }
+    } catch (err) {
+        msgDiv.style.color = '#c62828';
+        msgDiv.textContent = '❌ Server connection error.';
+        msgDiv.classList.remove('hidden');
     }
 });
 
 function successfulAuthTransition() {
+    toggleLoginCard('login');
     document.getElementById('login-view').classList.add('hidden');
     document.getElementById('app-view').classList.remove('hidden');
     document.getElementById('login-error').classList.add('hidden');

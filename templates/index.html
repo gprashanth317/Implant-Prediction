@@ -28,10 +28,13 @@
             <p class="login-subtitle">Use credential pairs or single sign-on options</p>
             
             <form id="login-form">
-                <div class="form-group"><input type="text" id="username" placeholder="Username" required></div>
+                <div class="form-group"><input type="text" id="username" placeholder="Username or Email" required></div>
                 <div class="form-group"><input type="password" id="password" placeholder="Password" required></div>
                 <button type="submit" class="btn-primary">Secure Login</button>
                 <p id="login-error" class="hidden">Invalid credentials. Please try again.</p>
+                <div style="margin-top: 12px; text-align: right;">
+                    <a href="javascript:void(0)" onclick="toggleLoginCard('forgot')" style="color: #2980b9; text-decoration: underline; font-size: 0.9rem;">🔑 Forgot Password?</a>
+                </div>
             </form>
 
             <div class="auth-divider"><span>OR</span></div>
@@ -39,6 +42,36 @@
                 <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/web-24dp/logo_googleg_color_24dp.png" alt="Google Identity Logo">
                 Continue with Google Account
             </button>
+        </div>
+
+        <!-- Google Setup Card (First-time Username & Password Setup) -->
+        <div id="google-setup-card" class="card login-card hidden" style="margin-top: 20px;">
+            <h2>Complete Account Setup</h2>
+            <p class="login-subtitle">Set up a unique Username & Password for direct logins</p>
+            <form id="google-setup-form">
+                <input type="hidden" id="setup-email">
+                <div class="form-group"><input type="text" id="setup-name" placeholder="Full Name" required></div>
+                <div class="form-group"><input type="text" id="setup-username" placeholder="Choose Unique Username" required></div>
+                <div class="form-group"><input type="password" id="setup-password" placeholder="Set Account Password" minlength="6" required></div>
+                <div id="setup-error" class="hidden" style="color: #c62828; margin-bottom: 10px; font-weight: bold;"></div>
+                <button type="submit" class="btn-primary">Complete Registration & Login</button>
+            </form>
+        </div>
+
+        <!-- Forgot Password Card -->
+        <div id="forgot-password-card" class="card login-card hidden" style="margin-top: 20px;">
+            <h2>Reset Password</h2>
+            <p class="login-subtitle">Enter your registered email address to set a new password</p>
+            <form id="forgot-password-form">
+                <div class="form-group"><input type="email" id="forgot-email" placeholder="Registered Email Address" required></div>
+                <div class="form-group"><input type="password" id="forgot-new-password" placeholder="New Password" minlength="6" required></div>
+                <div class="form-group"><input type="password" id="forgot-confirm-password" placeholder="Confirm New Password" minlength="6" required></div>
+                <div id="forgot-msg" class="hidden" style="margin-bottom: 10px; font-weight: bold;"></div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn-primary" style="flex: 1;">Save New Password</button>
+                    <button type="button" class="btn-primary" onclick="toggleLoginCard('login')" style="flex: 1; background: #7f8c8d;">Back to Login</button>
+                </div>
+            </form>
         </div>
     </div>
 
