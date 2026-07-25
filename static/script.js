@@ -81,6 +81,11 @@ async function loginWithFirebaseGoogle() {
                         lastLogin: firebase.firestore.FieldValue.serverTimestamp()
                     }, { merge: true }).catch(err => console.warn("Firestore sync warning:", err));
                 }
+            } else if (result.status === 'setup_required') {
+                document.getElementById('setup-email').value = result.email;
+                document.getElementById('setup-name').value = result.name;
+                document.getElementById('setup-username').value = result.email;
+                toggleLoginCard('setup');
             } else {
                 alert(`Authentication error: ${result.message}`);
                 toggleLoginCard('google');

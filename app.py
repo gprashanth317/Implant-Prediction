@@ -167,29 +167,18 @@ def google_auth():
     user = User.query.filter_by(email=email).first()
     
     if not user:
-        default_username = email.split('@')[0]
-        counter = 1
-        base_user = default_username
-        while User.query.filter_by(username=default_username).first():
-            default_username = f"{base_user}_{counter}"
-            counter += 1
-
         user = User(
             email=email, 
-            username=default_username,
+            username=email,
             name=name or 'Doctor User', 
-            password='google_authenticated_user',
+            password='',
             joined_date=datetime.now().strftime("%Y-%m-%d"),
-            is_registered=True,
+            is_registered=False,
             specialty='Dental Practitioner',
             clinic_name='Medical Center',
             license_number='REG-8849201'
         )
         db.session.add(user)
-        db.session.commit()
-    elif not user.username:
-        user.username = email.split('@')[0]
-        user.is_registered = True
         db.session.commit()
 
     # Sync User profile to Firebase Firestore Cloud Database
@@ -199,7 +188,7 @@ def google_auth():
                 "email": user.email,
                 "name": user.name,
                 "username": user.username,
-                "is_registered": True,
+                "is_registered": user.is_registered,
                 "specialty": user.specialty,
                 "clinic_name": user.clinic_name,
                 "license_number": user.license_number,
@@ -208,7 +197,16 @@ def google_auth():
         except Exception as fe:
             print(f"Firebase user sync warning: {fe}")
 
-    # Set session immediately so user is logged in
+    # Require password setup for first-time Google logins
+    if not user.is_registered or not user.password or user.password == '':
+        return jsonify({
+            "status": "setup_required",
+            "message": "First time Google login. Please set up your Username/Email ID and Password.",
+            "email": user.email,
+            "name": user.name
+        })
+
+    # Subsequent logins transition directly into session
     session['user_id'] = user.id
     session['user_name'] = user.name
     session['user_email'] = user.email
@@ -568,7 +566,7 @@ def predict():
 @login_required
 def get_history():
     user_id = session.get('user_id')
-    records = PatientHistory.query.filter((PatientHistory.user_id == user_id) | (PatientHistory.user_id == None)).all()
+    records = PatientHistory.query.filter_by(user_id=user_id).order_by(PatientHistory.id.desc()).all()
     history_data = []
     for record in records:
         history_data.append({
