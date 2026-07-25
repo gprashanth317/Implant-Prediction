@@ -34,6 +34,24 @@ def allowed_file(filename):
 
 db = SQLAlchemy(app)
 
+# --- FIREBASE ADMIN & FIRESTORE CLOUD DATABASE INITIALIZATION ---
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+firebase_db = None
+try:
+    if not firebase_admin._apps:
+        cred_path = os.environ.get('FIREBASE_CREDENTIALS_PATH', 'firebase_key.json')
+        if os.path.exists(cred_path):
+            cred = credentials.Certificate(cred_path)
+            firebase_admin.initialize_app(cred)
+        else:
+            firebase_admin.initialize_app()
+        print("🔥 Firebase Admin SDK initialized successfully!")
+    firebase_db = firestore.client()
+except Exception as e:
+    print(f" Warning: Firebase Admin initialization: {e}")
+
 # --- 2. DATABASE MODELS ---
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -160,6 +178,22 @@ def google_auth():
         db.session.add(user)
         db.session.commit()
 
+    # Sync User profile to Firebase Firestore Cloud Database
+    if firebase_db:
+        try:
+            firebase_db.collection('users').document(str(user.id)).set({
+                "email": user.email,
+                "name": user.name,
+                "username": user.username,
+                "is_registered": user.is_registered,
+                "specialty": user.specialty,
+                "clinic_name": user.clinic_name,
+                "license_number": user.license_number,
+                "updated_at": firestore.SERVER_TIMESTAMP
+            }, merge=True)
+        except Exception as fe:
+            print(f"Firebase user sync warning: {fe}")
+
     # Check if user needs username/password setup
     if not user.is_registered or not user.username:
         return jsonify({
@@ -203,6 +237,18 @@ def complete_setup():
         user.name = full_name
     user.is_registered = True
     db.session.commit()
+
+    if firebase_db:
+        try:
+            firebase_db.collection('users').document(str(user.id)).set({
+                "email": user.email,
+                "name": user.name,
+                "username": user.username,
+                "is_registered": True,
+                "updated_at": firestore.SERVER_TIMESTAMP
+            }, merge=True)
+        except Exception as fe:
+            print(f"Firebase setup sync warning: {fe}")
 
     session['user_id'] = user.id
     session['user_name'] = user.name
@@ -476,6 +522,34 @@ def predict():
         )
         db.session.add(new_record)
         db.session.commit()
+
+        # 5. Sync Record to Firebase Firestore Cloud Database
+        if firebase_db:
+            try:
+                firebase_db.collection('patient_history').add({
+                    "user_id": str(user_id),
+                    "user_email": session.get('user_email', ''),
+                    "patient_id": patient_id,
+                    "patient_name": patient_name,
+                    "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "age": age,
+                    "gender": gender_raw,
+                    "smoking_status": smoking_status,
+                    "diabetes": diabetes_raw,
+                    "history_periodontitis": perio_raw,
+                    "bruxism": bruxism_raw,
+                    "oral_hygiene": hygiene_status,
+                    "bone_quality": bone_quality_status,
+                    "jaw_location": jaw_location_status,
+                    "implant_length_mm": length,
+                    "implant_diameter_mm": diameter,
+                    "implant_surface": surface_status,
+                    "score": final_score,
+                    "created_at": firestore.SERVER_TIMESTAMP
+                })
+                print("✅ Patient evaluation record synced to Firebase Firestore!")
+            except Exception as fe:
+                print(f"Firebase Firestore sync warning: {fe}")
 
         return jsonify({'status': 'success', 'survival_probability': final_score, 'explanations': explanations})
 

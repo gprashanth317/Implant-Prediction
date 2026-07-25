@@ -13,6 +13,13 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='ai.jpg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- Firebase App, Auth & Firestore Web SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="{{ url_for('static', filename='firebase-config.js') }}"></script>
+
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -39,7 +46,7 @@
             </form>
 
             <div class="auth-divider"><span>OR</span></div>
-            <button type="button" id="google-login-btn" onclick="toggleLoginCard('google')" class="btn-google">
+            <button type="button" id="google-login-btn" onclick="loginWithFirebaseGoogle()" class="btn-google">
                 <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/web-24dp/logo_googleg_color_24dp.png" alt="Google Identity Logo">
                 Continue with Google Account
             </button>

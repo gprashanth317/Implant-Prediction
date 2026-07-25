@@ -53,6 +53,39 @@ document.getElementById('login-form').addEventListener('submit', async function(
     }
 });
 
+async function loginWithFirebaseGoogle() {
+    if (typeof firebase !== 'undefined' && firebaseAuth && googleProvider) {
+        try {
+            const userCredential = await firebaseAuth.signInWithPopup(googleProvider);
+            const user = userCredential.user;
+            const googleEmail = user.email;
+            const googleName = user.displayName || 'Doctor User';
+
+            const response = await fetch('/auth/google', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: googleName, email: googleEmail })
+            });
+
+            const result = await response.json();
+            if (response.ok && result.status === 'success') {
+                successfulAuthTransition();
+            } else if (result.status === 'setup_required') {
+                document.getElementById('setup-email').value = result.email;
+                document.getElementById('setup-name').value = result.name;
+                document.getElementById('setup-username').value = result.email.split('@')[0];
+                toggleLoginCard('setup');
+            } else {
+                alert(`Firebase Auth Error: ${result.message}`);
+            }
+            return;
+        } catch (error) {
+            console.warn("Firebase Google popup authentication:", error.message);
+        }
+    }
+    toggleLoginCard('google');
+}
+
 document.getElementById('google-email-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const email = document.getElementById('google-input-email').value.trim();
