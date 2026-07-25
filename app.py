@@ -47,12 +47,12 @@ try:
             firebase_admin.initialize_app(cred)
         else:
             firebase_admin.initialize_app()
-        print("🔥 Firebase Admin SDK initialized successfully!")
+        print("[Firebase] Firebase Admin SDK initialized successfully!")
     firebase_db = firestore.client()
 except ImportError:
-    print("ℹ️ Note: firebase-admin Python package not installed locally. Web SDK & local DB active.")
+    print("[Firebase] Note: firebase-admin package optional. Web SDK active.")
 except Exception as e:
-    print(f" Warning: Firebase Admin initialization: {e}")
+    print(f"[Firebase] Initialization status: {e}")
 
 # --- 2. DATABASE MODELS ---
 class User(db.Model):
