@@ -262,15 +262,68 @@ def complete_setup():
 
     return jsonify({"status": "success", "message": "Account setup complete! You are now logged in."})
 
-@app.route('/auth/forgot_password', methods=['POST'])
-def forgot_password():
+# --- 3-STEP OTP FORGOT PASSWORD SERVICES ---
+import random
+
+@app.route('/auth/send_otp', methods=['POST'])
+def send_otp():
+    data = request.json or {}
+    email = data.get('email', '').strip()
+
+    if not email:
+        return jsonify({"status": "error", "message": "Registered email address is required."}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"status": "error", "message": "No registered account found with this email address."}), 404
+
+    # Generate random 6-digit OTP code
+    otp_code = str(random.randint(100000, 999999))
+    session['reset_otp'] = otp_code
+    session['reset_email'] = email
+    session['reset_otp_time'] = datetime.now().timestamp()
+
+    print(f"[OTP SERVICE] Verification OTP for {email}: {otp_code}")
+
+    return jsonify({
+        "status": "success",
+        "message": f"Verification OTP code generated for {email}.",
+        "email": email,
+        "otp_code": otp_code
+    })
+
+@app.route('/auth/verify_otp', methods=['POST'])
+def verify_otp():
+    data = request.json or {}
+    email = data.get('email', '').strip()
+    entered_otp = data.get('otp', '').strip()
+
+    session_otp = session.get('reset_otp')
+    session_email = session.get('reset_email')
+    otp_timestamp = session.get('reset_otp_time', 0)
+
+    # 10-minute validity check (600s)
+    if datetime.now().timestamp() - otp_timestamp > 600:
+        return jsonify({"status": "error", "message": "OTP has expired. Please request a new verification code."}), 400
+
+    if not entered_otp or entered_otp != session_otp or email != session_email:
+        return jsonify({"status": "error", "message": "Invalid OTP code. Please enter the correct 6-digit OTP."}), 400
+
+    session['otp_verified'] = True
+    return jsonify({"status": "success", "message": "OTP verified successfully! Now set your new password."})
+
+@app.route('/auth/reset_password_otp', methods=['POST'])
+def reset_password_otp():
     data = request.json or {}
     email = data.get('email', '').strip()
     new_password = data.get('new_password', '').strip()
     confirm_password = data.get('confirm_password', '').strip()
 
-    if not email or not new_password or not confirm_password:
-        return jsonify({"status": "error", "message": "Email and new password fields are required."}), 400
+    if not session.get('otp_verified') or session.get('reset_email') != email:
+        return jsonify({"status": "error", "message": "OTP verification required before setting a new password."}), 403
+
+    if not new_password or not confirm_password:
+        return jsonify({"status": "error", "message": "New password fields are required."}), 400
 
     if new_password != confirm_password:
         return jsonify({"status": "error", "message": "New password and confirmation do not match."}), 400
@@ -280,13 +333,19 @@ def forgot_password():
 
     user = User.query.filter_by(email=email).first()
     if not user:
-        return jsonify({"status": "error", "message": "No account found with that email address."}), 404
+        return jsonify({"status": "error", "message": "User account not found."}), 404
 
     user.password = new_password
     user.is_registered = True
     db.session.commit()
 
-    return jsonify({"status": "success", "message": "Password reset successfully! You can now log in."})
+    # Clear reset session tokens
+    session.pop('reset_otp', None)
+    session.pop('reset_email', None)
+    session.pop('reset_otp_time', None)
+    session.pop('otp_verified', None)
+
+    return jsonify({"status": "success", "message": "Password updated successfully! You can now log in with your new password."})
 
 @app.route('/auth/logout', methods=['POST'])
 def logout():

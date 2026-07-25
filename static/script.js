@@ -166,28 +166,102 @@ document.getElementById('google-setup-form').addEventListener('submit', async fu
     }
 });
 
-document.getElementById('forgot-password-form').addEventListener('submit', async function(e) {
+// --- 3-STEP OTP FORGOT PASSWORD CONTROLLERS ---
+let resetEmailStorage = '';
+
+function resetForgotCardToStep1() {
+    document.getElementById('forgot-step1-form').classList.remove('hidden');
+    document.getElementById('forgot-step2-form').classList.add('hidden');
+    document.getElementById('forgot-step3-form').classList.add('hidden');
+    document.getElementById('forgot-card-title').innerText = "🔑 Forgot Password";
+    document.getElementById('forgot-card-subtitle').innerText = "Enter your registered email address to receive a 6-digit OTP verification code";
+    document.getElementById('forgot-msg-step1').classList.add('hidden');
+}
+
+// Step 1: Request OTP for registered email
+document.getElementById('forgot-step1-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    const email = document.getElementById('forgot-email').value;
+    const email = document.getElementById('forgot-email').value.trim();
+    const msgDiv = document.getElementById('forgot-msg-step1');
+    msgDiv.classList.add('hidden');
+
+    try {
+        const response = await fetch('/auth/send_otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email })
+        });
+        const result = await response.json();
+
+        if (response.ok && result.status === 'success') {
+            resetEmailStorage = email;
+            document.getElementById('forgot-step1-form').classList.add('hidden');
+            document.getElementById('forgot-step2-form').classList.remove('hidden');
+            document.getElementById('forgot-card-title').innerText = "📩 Enter Verification OTP";
+            document.getElementById('forgot-card-subtitle').innerText = `Verification code sent to ${email}`;
+            
+            const banner = document.getElementById('otp-demo-banner');
+            banner.innerHTML = `🔑 OTP Verification Code: <strong>${result.otp_code}</strong>`;
+        } else {
+            msgDiv.textContent = '❌ ' + (result.message || 'Email not found.');
+            msgDiv.classList.remove('hidden');
+        }
+    } catch (err) {
+        msgDiv.textContent = '❌ Server connection error.';
+        msgDiv.classList.remove('hidden');
+    }
+});
+
+// Step 2: Verify 6-Digit OTP
+document.getElementById('forgot-step2-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const otpInput = document.getElementById('forgot-otp-input').value.trim();
+    const msgDiv = document.getElementById('forgot-msg-step2');
+    msgDiv.classList.add('hidden');
+
+    try {
+        const response = await fetch('/auth/verify_otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: resetEmailStorage, otp: otpInput })
+        });
+        const result = await response.json();
+
+        if (response.ok && result.status === 'success') {
+            document.getElementById('forgot-step2-form').classList.add('hidden');
+            document.getElementById('forgot-step3-form').classList.remove('hidden');
+            document.getElementById('forgot-card-title').innerText = "🔒 Set New Password";
+            document.getElementById('forgot-card-subtitle').innerText = "OTP Verified! Set your new account password";
+        } else {
+            msgDiv.textContent = '❌ ' + (result.message || 'Invalid OTP.');
+            msgDiv.classList.remove('hidden');
+        }
+    } catch (err) {
+        msgDiv.textContent = '❌ Connection error.';
+        msgDiv.classList.remove('hidden');
+    }
+});
+
+// Step 3: Reset Password with OTP Verification token
+document.getElementById('forgot-step3-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
     const newPassword = document.getElementById('forgot-new-password').value;
     const confirmPassword = document.getElementById('forgot-confirm-password').value;
-    const msgDiv = document.getElementById('forgot-msg');
-
+    const msgDiv = document.getElementById('forgot-msg-step3');
     msgDiv.classList.add('hidden');
 
     if (newPassword !== confirmPassword) {
-        msgDiv.style.color = '#c62828';
         msgDiv.textContent = '❌ New password and confirmation do not match.';
         msgDiv.classList.remove('hidden');
         return;
     }
 
     try {
-        const response = await fetch('/auth/forgot_password', {
+        const response = await fetch('/auth/reset_password_otp', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                email: email,
+                email: resetEmailStorage,
                 new_password: newPassword,
                 confirm_password: confirmPassword
             })
@@ -195,16 +269,17 @@ document.getElementById('forgot-password-form').addEventListener('submit', async
 
         const result = await response.json();
         if (response.ok && result.status === 'success') {
-            msgDiv.style.color = '#2e7d32';
+            msgDiv.style.color = '#27ae60';
             msgDiv.textContent = '✅ ' + result.message;
             msgDiv.classList.remove('hidden');
 
             setTimeout(() => {
+                resetForgotCardToStep1();
                 toggleLoginCard('login');
             }, 1800);
         } else {
             msgDiv.style.color = '#c62828';
-            msgDiv.textContent = '❌ ' + (result.message || 'Password reset failed.');
+            msgDiv.textContent = '❌ ' + (result.message || 'Password update failed.');
             msgDiv.classList.remove('hidden');
         }
     } catch (err) {

@@ -81,19 +81,38 @@
             </form>
         </div>
 
-        <!-- Forgot Password Card -->
+        <!-- 3-Step OTP Forgot Password Card -->
         <div id="forgot-password-card" class="card login-card hidden" style="margin-top: 20px;">
-            <h2>Reset Password</h2>
-            <p class="login-subtitle">Enter your registered email address to set a new password</p>
-            <form id="forgot-password-form">
+            <h2 id="forgot-card-title">🔑 Forgot Password</h2>
+            <p id="forgot-card-subtitle" class="login-subtitle">Enter your registered email address to receive a 6-digit OTP verification code</p>
+            
+            <!-- Step 1: Send OTP -->
+            <form id="forgot-step1-form">
                 <div class="form-group"><input type="email" id="forgot-email" placeholder="Registered Email Address" required></div>
-                <div class="form-group"><input type="password" id="forgot-new-password" placeholder="New Password" minlength="6" required></div>
-                <div class="form-group"><input type="password" id="forgot-confirm-password" placeholder="Confirm New Password" minlength="6" required></div>
-                <div id="forgot-msg" class="hidden" style="margin-bottom: 10px; font-weight: bold;"></div>
+                <div id="forgot-msg-step1" class="hidden" style="margin-bottom: 10px; font-weight: bold; color: #c62828;"></div>
                 <div style="display: flex; gap: 10px;">
-                    <button type="submit" class="btn-primary" style="flex: 1;">Save New Password</button>
-                    <button type="button" class="btn-primary" onclick="toggleLoginCard('login')" style="flex: 1; background: #7f8c8d;">Back to Login</button>
+                    <button type="submit" class="btn-primary" style="flex: 1;">Send OTP Code</button>
+                    <button type="button" class="btn-primary" onclick="toggleLoginCard('login')" style="flex: 1; background: #7f8c8d;">Back</button>
                 </div>
+            </form>
+
+            <!-- Step 2: Verify OTP -->
+            <form id="forgot-step2-form" class="hidden">
+                <div id="otp-demo-banner" style="background:#e8f8f5; color:#27ae60; padding:10px; border-radius:6px; font-weight:bold; margin-bottom:12px; text-align:center;"></div>
+                <div class="form-group"><input type="text" id="forgot-otp-input" placeholder="Enter 6-Digit OTP (e.g. 849201)" maxlength="6" required></div>
+                <div id="forgot-msg-step2" class="hidden" style="margin-bottom: 10px; font-weight: bold; color: #c62828;"></div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn-primary" style="flex: 1;">Verify OTP Code</button>
+                    <button type="button" class="btn-primary" onclick="resetForgotCardToStep1()" style="flex: 1; background: #7f8c8d;">Resend OTP</button>
+                </div>
+            </form>
+
+            <!-- Step 3: Reset Password -->
+            <form id="forgot-step3-form" class="hidden">
+                <div class="form-group"><input type="password" id="forgot-new-password" placeholder="Set New Password (min 6 chars)" minlength="6" required></div>
+                <div class="form-group"><input type="password" id="forgot-confirm-password" placeholder="Confirm New Password" minlength="6" required></div>
+                <div id="forgot-msg-step3" class="hidden" style="margin-bottom: 10px; font-weight: bold; color: #c62828;"></div>
+                <button type="submit" class="btn-primary">Update Password & Login</button>
             </form>
         </div>
     </div>
