@@ -262,8 +262,56 @@ def complete_setup():
 
     return jsonify({"status": "success", "message": "Account setup complete! You are now logged in."})
 
-# --- 3-STEP OTP FORGOT PASSWORD SERVICES ---
+# --- 3-STEP OTP FORGOT PASSWORD & SMTP EMAIL SERVICES ---
 import random
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
+SMTP_EMAIL = os.environ.get('SMTP_EMAIL', '')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
+
+def send_email_otp(recipient_email, otp_code):
+    """Sends 6-digit OTP code to the recipient email via SMTP."""
+    if not SMTP_EMAIL or not SMTP_PASSWORD:
+        print(f"⚠️ [SMTP NOTICE] SMTP_EMAIL and SMTP_PASSWORD environment variables not set. OTP for {recipient_email} is: {otp_code}")
+        return False, "SMTP email server credentials not set on host."
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg['Subject'] = "🔒 Implant Predict - Password Reset OTP Code"
+        msg['From'] = f"Implant Predict Security <{SMTP_EMAIL}>"
+        msg['To'] = recipient_email
+
+        html_content = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #ffffff;">
+            <div style="background: #1e2d3c; color: #ffffff; padding: 20px; text-align: center;">
+                <h2 style="margin:0; font-size: 1.3rem;">Maxillofacial Implant Predictor</h2>
+            </div>
+            <div style="padding: 25px; color: #2d3748; line-height: 1.5;">
+                <p style="margin-top:0;">Hello,</p>
+                <p>You requested a 6-digit OTP verification code to reset your account password.</p>
+                <div style="background: #e8f8f5; border: 2px dashed #27ae60; border-radius: 8px; padding: 15px; text-align: center; margin: 20px 0;">
+                    <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #27ae60;">{otp_code}</span>
+                </div>
+                <p style="font-size: 0.85rem; color: #718096; margin-bottom:0;">This verification code will expire in <strong>10 minutes</strong>. If you did not request a password reset, please ignore this email.</p>
+            </div>
+        </div>
+        """
+        msg.attach(MIMEText(html_content, "html"))
+
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.sendmail(SMTP_EMAIL, recipient_email, msg.as_string())
+        
+        print(f"✅ [SMTP SUCCESS] OTP email delivered to {recipient_email}")
+        return True, "OTP email delivered successfully."
+    except Exception as e:
+        print(f"❌ [SMTP ERROR] Could not send OTP email to {recipient_email}: {e}")
+        return False, str(e)
 
 @app.route('/auth/send_otp', methods=['POST'])
 def send_otp():
@@ -283,14 +331,22 @@ def send_otp():
     session['reset_email'] = email
     session['reset_otp_time'] = datetime.now().timestamp()
 
-    print(f"[OTP SERVICE] Verification OTP for {email}: {otp_code}")
+    print(f"🔑 [OTP SERVICE] Verification OTP generated for {email}: {otp_code}")
 
-    return jsonify({
+    email_sent, mail_msg = send_email_otp(email, otp_code)
+
+    resp_payload = {
         "status": "success",
-        "message": f"Verification OTP code generated for {email}.",
-        "email": email,
-        "otp_code": otp_code
-    })
+        "email": email
+    }
+
+    if email_sent:
+        resp_payload["message"] = f"Verification OTP code sent to {email}. Please check your inbox."
+    else:
+        resp_payload["message"] = f"OTP code generated for {email}. (Note: SMTP server not configured locally; OTP is {otp_code})"
+        resp_payload["dev_otp"] = otp_code
+
+    return jsonify(resp_payload)
 
 @app.route('/auth/verify_otp', methods=['POST'])
 def verify_otp():
