@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import func
 from datetime import datetime
 import os
 import joblib
@@ -127,10 +128,16 @@ def login():
     user_input = data.get('username', '').strip()
     password = data.get('password', '').strip()
 
-    user = User.query.filter((User.username == user_input) | (User.email == user_input)).first()
+    if not user_input or not password:
+        return jsonify({"status": "error", "message": "Username/Email and Password are required."}), 400
+
+    user = User.query.filter(
+        (func.lower(User.username) == user_input.lower()) | 
+        (func.lower(User.email) == user_input.lower())
+    ).first()
     
     # Fallback default admin user initialization
-    if not user and (user_input == 'admin' or user_input == 'admin@clinicalportal.com'):
+    if not user and (user_input.lower() == 'admin' or user_input.lower() == 'admin@clinicalportal.com'):
         user = User(
             email='admin@clinicalportal.com',
             username='admin',
@@ -145,7 +152,7 @@ def login():
         db.session.add(user)
         db.session.commit()
 
-    if user and (user.password == password or (password == 'password' and user_input == 'admin')):
+    if user and user.password == password:
         session['user_id'] = user.id
         session['user_name'] = user.name
         session['user_email'] = user.email
@@ -165,12 +172,14 @@ def google_auth():
     if not email:
         return jsonify({"status": "error", "message": "Email is required."}), 400
 
-    user = User.query.filter_by(email=email).first()
+    email_clean = email.strip().lower()
+    user = User.query.filter(func.lower(User.email) == email_clean).first()
     
+    # 1. FIRST TIME USER: Email is not in database -> Create uncompleted account & ask to create password
     if not user:
         user = User(
-            email=email, 
-            username=email,
+            email=email_clean, 
+            username=email_clean.split('@')[0],
             name=name or 'Doctor User', 
             password='',
             joined_date=datetime.now().strftime("%Y-%m-%d"),
@@ -182,44 +191,51 @@ def google_auth():
         db.session.add(user)
         db.session.commit()
 
-    # Sync User profile to Firebase Firestore Cloud Database
-    if firebase_db:
-        try:
-            firebase_db.collection('users').document(str(user.id)).set({
-                "email": user.email,
-                "name": user.name,
-                "username": user.username,
-                "is_registered": user.is_registered,
-                "specialty": user.specialty,
-                "clinic_name": user.clinic_name,
-                "license_number": user.license_number,
-                "updated_at": firestore.SERVER_TIMESTAMP
-            }, merge=True)
-        except Exception as fe:
-            print(f"Firebase user sync warning: {fe}")
-
-    # Require password setup for first-time Google logins
-    if not user.is_registered or not user.password or user.password == '' or user.password in ['google_authenticated_user', 'google_temp_password']:
         return jsonify({
             "status": "setup_required",
-            "message": "First time Google login. Please set up your Username/Email ID and Password.",
+            "message": "First time login. Please create your account password.",
             "email": user.email,
             "name": user.name
         })
 
-    # Subsequent logins transition directly into session
-    session['user_id'] = user.id
-    session['user_name'] = user.name
-    session['user_email'] = user.email
-    session['user_username'] = user.username or user.email
-    session['joined_date'] = user.joined_date
+    # 2. REGISTERED USER: Email already has a created password -> NEVER ask again! Direct Login!
+    if user.is_registered and user.password and user.password.strip() != '':
+        session['user_id'] = user.id
+        session['user_name'] = user.name
+        session['user_email'] = user.email
+        session['user_username'] = user.username or user.email
+        session['joined_date'] = user.joined_date
 
-    return jsonify({"status": "success", "message": "Google authentication verified successfully."})
+        # Sync User profile to Firebase Firestore Cloud Database
+        if firebase_db:
+            try:
+                firebase_db.collection('users').document(str(user.id)).set({
+                    "email": user.email,
+                    "name": user.name,
+                    "username": user.username,
+                    "is_registered": True,
+                    "specialty": user.specialty,
+                    "clinic_name": user.clinic_name,
+                    "license_number": user.license_number,
+                    "updated_at": firestore.SERVER_TIMESTAMP
+                }, merge=True)
+            except Exception as fe:
+                print(f"Firebase user sync warning: {fe}")
+
+        return jsonify({"status": "success", "message": "Google authentication verified successfully."})
+
+    # 3. User created previously but never completed setting password -> Ask to complete password setup
+    return jsonify({
+        "status": "setup_required",
+        "message": "First time login. Please complete setting up your account password.",
+        "email": user.email,
+        "name": user.name
+    })
 
 @app.route('/auth/complete_setup', methods=['POST'])
 def complete_setup():
     data = request.json or {}
-    email = data.get('email', '').strip()
+    email = data.get('email', '').strip().lower()
     desired_username = data.get('username', '').strip()
     desired_password = data.get('password', '').strip()
     full_name = data.get('name', '').strip()
@@ -227,12 +243,18 @@ def complete_setup():
     if not email or not desired_username or not desired_password:
         return jsonify({"status": "error", "message": "All setup fields are required."}), 400
 
-    user = User.query.filter_by(email=email).first()
+    if len(desired_password) < 6:
+        return jsonify({"status": "error", "message": "Password must be at least 6 characters."}), 400
+
+    user = User.query.filter(func.lower(User.email) == email).first()
     if not user:
         return jsonify({"status": "error", "message": "User record not found for email."}), 404
 
     # Check if username is taken by another account
-    existing_username = User.query.filter(User.username == desired_username, User.id != user.id).first()
+    existing_username = User.query.filter(
+        func.lower(User.username) == desired_username.lower(), 
+        User.id != user.id
+    ).first()
     if existing_username:
         return jsonify({"status": "error", "message": "Username is already taken. Please choose another."}), 400
 
@@ -322,14 +344,14 @@ def send_otp():
     if not email:
         return jsonify({"status": "error", "message": "Registered email address is required."}), 400
 
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter(func.lower(User.email) == email.lower()).first()
     if not user:
         return jsonify({"status": "error", "message": "No registered account found with this email address."}), 404
 
     # Generate random 6-digit OTP code
     otp_code = str(random.randint(100000, 999999))
     session['reset_otp'] = otp_code
-    session['reset_email'] = email
+    session['reset_email'] = email.lower()
     session['reset_otp_time'] = datetime.now().timestamp()
 
     print(f"🔑 [OTP SERVICE] Verification OTP generated for {email}: {otp_code}")
@@ -352,11 +374,11 @@ def send_otp():
 @app.route('/auth/verify_otp', methods=['POST'])
 def verify_otp():
     data = request.json or {}
-    email = data.get('email', '').strip()
+    email = data.get('email', '').strip().lower()
     entered_otp = data.get('otp', '').strip()
 
     session_otp = session.get('reset_otp')
-    session_email = session.get('reset_email')
+    session_email = session.get('reset_email', '').lower()
     otp_timestamp = session.get('reset_otp_time', 0)
 
     # 10-minute validity check (600s)
@@ -372,11 +394,11 @@ def verify_otp():
 @app.route('/auth/reset_password_otp', methods=['POST'])
 def reset_password_otp():
     data = request.json or {}
-    email = data.get('email', '').strip()
+    email = data.get('email', '').strip().lower()
     new_password = data.get('new_password', '').strip()
     confirm_password = data.get('confirm_password', '').strip()
 
-    if not session.get('otp_verified') or session.get('reset_email') != email:
+    if not session.get('otp_verified') or session.get('reset_email', '').lower() != email:
         return jsonify({"status": "error", "message": "OTP verification required before setting a new password."}), 403
 
     if not new_password or not confirm_password:
@@ -388,7 +410,7 @@ def reset_password_otp():
     if len(new_password) < 6:
         return jsonify({"status": "error", "message": "Password must be at least 6 characters long."}), 400
 
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter(func.lower(User.email) == email).first()
     if not user:
         return jsonify({"status": "error", "message": "User account not found."}), 404
 
@@ -729,4 +751,4 @@ def delete_history(record_id):
         return jsonify({'status': 'error', 'message': 'Failed to delete record.'}), 400
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
