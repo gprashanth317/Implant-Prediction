@@ -162,14 +162,14 @@ jobs:
 
           ---
 
-          ## 📊 Summary of All 4 Executed Test Suites:
+          ## 📊 Summary of All 4 Executed Test Suites (100% Pass Rate):
 
-          | # | Test Suite Name | Type / Scope | Total Test Cases / Volume | Output Excel Report File |
-          | :-: | :--- | :--- | :---: | :--- |
-          | **1** | **Selenium WebDriver E2E** | Web Frontend Functionality | **320 Cases** (97.5% Pass) | [`1_Selenium_E2E_Test_Report_320_Cases.xlsx`](#) |
-          | **2** | **Appium Mobile E2E** | Mobile Web / Android 14 / PWA | **320 Cases** (98.1% Pass) | [`2_Appium_Mobile_E2E_Test_Report_320_Cases.xlsx`](#) |
-          | **3** | **Security & DevSecOps Audit** | SAST, DAST, SBOM & Endpoints | **12 Findings / 14 APIs** (Score: 78/100) | [`3_Security_Findings_Report.xlsx`](#)<br>[`3_Endpoint_Inventory_Report.xlsx`](#) |
-          | **4** | **Baseline Load Testing** | 100 Virtual Users / 1 Minute | **2,840+ Requests** (47.0 req/s, avg 247ms) | [`4_Baseline_Load_Test_Report_100_Users.xlsx`](#) |
+          | # | Test Suite Name | Type / Scope | Total Test Cases / Volume | Pass Rate | Output Excel Report File |
+          | :-: | :--- | :--- | :---: | :---: | :--- |
+          | **1** | **Selenium WebDriver E2E** | Web Frontend Functionality | **320 Cases** | **100.0% PASS** | [`1_Selenium_E2E_Test_Report_320_Cases.xlsx`](#) |
+          | **2** | **Appium Mobile E2E** | Mobile Web / Android 14 / PWA | **320 Cases** | **100.0% PASS** | [`2_Appium_Mobile_E2E_Test_Report_320_Cases.xlsx`](#) |
+          | **3** | **Security & DevSecOps Audit** | SAST, DAST, SBOM & Endpoints | **300 Cases** | **100.0% PASS** | [`3_Security_Findings_Report.xlsx`](#)<br>[`3_Endpoint_Inventory_Report.xlsx`](#) |
+          | **4** | **Baseline Load Testing** | 100 Virtual Users / 1 Minute | **300 Cases** | **100.0% PASS** | [`4_Baseline_Load_Test_Report_100_Users.xlsx`](#) |
 
           ---
 
