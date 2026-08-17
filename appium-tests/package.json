@@ -1,0 +1,28 @@
+{
+  "name": "implantai-appium-mobile-tests",
+  "version": "1.0.0",
+  "description": "Appium Mobile E2E Automation Testing Suite for ImplantAI Maxillofacial Predictor",
+  "main": "tests/appium-tests.js",
+  "scripts": {
+    "test": "node tests/appium-tests.js",
+    "generate-report": "python generate_appium_excel_report.py"
+  },
+  "keywords": [
+    "appium",
+    "mobile",
+    "android",
+    "ios",
+    "webdriverio",
+    "e2e",
+    "pwa",
+    "automation"
+  ],
+  "author": "ImplantAI QA Mobile Engineering",
+  "license": "ISC",
+  "dependencies": {
+    "webdriverio": "^8.36.0",
+    "@wdio/appium-service": "^8.36.0",
+    "appium": "^2.5.0",
+    "appium-uiautomator2-driver": "^3.0.0"
+  }
+}
