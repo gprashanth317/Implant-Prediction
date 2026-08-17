@@ -730,6 +730,10 @@ function downloadPatientPDF(item) {
     const riskLabel = item.score >= 90 ? 'Low Risk (Excellent Prognosis)' : (item.score >= 80 ? 'Medium Risk (Moderate Prognosis)' : 'High Risk Profile');
     const riskColor = item.score >= 90 ? '#27ae60' : (item.score >= 80 ? '#d35400' : '#c62828');
 
+    const docName = (currentDoctorProfile && currentDoctorProfile.name) || document.getElementById('profile-name')?.textContent || 'Dr. Specialist';
+    const docPhone = (currentDoctorProfile && currentDoctorProfile.phone) || document.getElementById('profile-phone')?.textContent || '+91 98765 43210';
+    const clinicName = (currentDoctorProfile && currentDoctorProfile.clinic_name) || 'City Dental & Surgical Center';
+
     const pdfContainer = document.createElement('div');
     pdfContainer.style.padding = '30px';
     pdfContainer.style.fontFamily = 'Arial, sans-serif';
@@ -737,23 +741,30 @@ function downloadPatientPDF(item) {
     pdfContainer.style.background = '#fff';
 
     pdfContainer.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1e2d3c; padding-bottom: 15px; margin-bottom: 25px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #1e2d3c; padding-bottom: 15px; margin-bottom: 25px;">
             <div>
-                <h1 style="margin: 0; color: #1e2d3c; font-size: 1.8rem;">ImplantAI Clinical Evaluation Report</h1>
+                <h1 style="margin: 0; color: #1e2d3c; font-size: 1.75rem;">ImplantAI Clinical Evaluation Report</h1>
                 <p style="margin: 4px 0 0 0; color: #7f8c8d; font-size: 0.95rem;">Maxillofacial Prosthetics Survival Predictor</p>
+                <p style="margin: 4px 0 0 0; color: #2c3e50; font-size: 0.85rem;"><strong>🏥 Clinic:</strong> ${clinicName}</p>
             </div>
-            <div style="text-align: right; font-size: 0.85rem; color: #555;">
-                <p style="margin: 0;"><strong>Report Date:</strong> ${new Date().toLocaleDateString()}</p>
-                <p style="margin: 3px 0 0 0;"><strong>Evaluation ID:</strong> ${item.patient_id || 'REG-' + Date.now().toString().substring(6)}</p>
+            <div style="text-align: right; font-size: 0.88rem; color: #333; line-height: 1.5;">
+                <p style="margin: 0;"><strong>📅 Report Date:</strong> ${new Date().toLocaleDateString()}</p>
+                <p style="margin: 2px 0;"><strong>🆔 Evaluation ID:</strong> ${item.patient_id || 'REG-' + Date.now().toString().substring(6)}</p>
+                <p style="margin: 2px 0;"><strong>👨‍⚕️ Doctor Name:</strong> ${docName}</p>
+                <p style="margin: 2px 0;"><strong>📞 Phone:</strong> ${docPhone}</p>
             </div>
         </div>
 
         <div style="background: #f8f9fa; padding: 15px 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
-            <h3 style="margin-top:0; color: #1e2d3c; font-size: 1.1rem; border-bottom: 1px solid #ccc; padding-bottom: 6px;">👤 Patient & Evaluation Demographics</h3>
+            <h3 style="margin-top:0; color: #1e2d3c; font-size: 1.1rem; border-bottom: 1px solid #ccc; padding-bottom: 6px;">👤 Patient & Clinical Demographics</h3>
             <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
                 <tr>
                     <td style="padding: 6px 0;"><strong>Patient Name:</strong> ${item.patient_name}</td>
+                    <td style="padding: 6px 0;"><strong>Attending Doctor:</strong> ${docName}</td>
+                </tr>
+                <tr>
                     <td style="padding: 6px 0;"><strong>Patient ID:</strong> ${item.patient_id}</td>
+                    <td style="padding: 6px 0;"><strong>Doctor Contact / Phone:</strong> ${docPhone}</td>
                 </tr>
                 <tr>
                     <td style="padding: 6px 0;"><strong>Age / Gender:</strong> ${item.age} years / ${item.gender}</td>
@@ -903,6 +914,13 @@ function filterAnalyticsCategory(category) {
 }
 
 // --- 6. PROFILE LOGIC ---
+let currentDoctorProfile = {
+    name: 'Dr. Physician',
+    phone: '+91 98765 43210',
+    email: '',
+    clinic_name: 'City Dental & Surgical Center'
+};
+
 async function fetchProfile() {
     try {
         const response = await fetch('/get_profile');
@@ -916,12 +934,17 @@ async function fetchProfile() {
         const profileData = await response.json();
 
         if (profileData.status === "success") {
+            currentDoctorProfile = profileData;
+
             document.getElementById('profile-name').textContent = profileData.name;
             document.getElementById('profile-email').textContent = profileData.email;
             document.getElementById('profile-joined').textContent = profileData.joined;
             document.getElementById('profile-specialty').textContent = profileData.specialty || "Maxillofacial Surgeon";
             document.getElementById('profile-clinic').textContent = profileData.clinic_name || "City Dental & Surgical Center";
             document.getElementById('profile-license').textContent = profileData.license_number || "REG-8849201";
+            
+            const phoneEl = document.getElementById('profile-phone');
+            if (phoneEl) phoneEl.textContent = profileData.phone || "+91 98765 43210";
 
             const avatarIcon = document.getElementById('profile-avatar-icon');
             const avatarImg = document.getElementById('profile-avatar-img');
@@ -941,6 +964,8 @@ async function fetchProfile() {
             document.getElementById('edit-profile-specialty').value = profileData.specialty || '';
             document.getElementById('edit-profile-clinic').value = profileData.clinic_name || '';
             document.getElementById('edit-profile-license').value = profileData.license_number || '';
+            const editPhoneEl = document.getElementById('edit-profile-phone');
+            if (editPhoneEl) editPhoneEl.value = profileData.phone || '+91 98765 43210';
         }
     } catch (error) {
         console.error("Error fetching profile:", error);
@@ -996,6 +1021,7 @@ document.getElementById('profile-edit-form').addEventListener('submit', async fu
     const formData = new FormData();
     formData.append('name', document.getElementById('edit-profile-name').value);
     formData.append('email', document.getElementById('edit-profile-email').value);
+    formData.append('phone', document.getElementById('edit-profile-phone')?.value || '');
     formData.append('specialty', document.getElementById('edit-profile-specialty').value);
     formData.append('clinic_name', document.getElementById('edit-profile-clinic').value);
     formData.append('license_number', document.getElementById('edit-profile-license').value);

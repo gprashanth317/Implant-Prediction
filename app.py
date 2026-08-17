@@ -66,6 +66,7 @@ class User(db.Model):
     specialty = db.Column(db.String(150), nullable=True, default='Maxillofacial Surgeon')
     clinic_name = db.Column(db.String(150), nullable=True, default='City Dental & Surgical Center')
     license_number = db.Column(db.String(100), nullable=True, default='REG-8849201')
+    phone = db.Column(db.String(50), nullable=True, default='+91 98765 43210')
     avatar_filename = db.Column(db.String(255), nullable=True, default='default_avatar.png')
 
 class PatientHistory(db.Model):
@@ -422,6 +423,7 @@ def get_profile():
             "specialty": "Maxillofacial Surgeon",
             "clinic_name": "City Dental & Surgical Center",
             "license_number": "REG-8849201",
+            "phone": "+91 98765 43210",
             "avatar_url": None
         })
 
@@ -436,6 +438,7 @@ def get_profile():
         "specialty": user.specialty or "Maxillofacial Surgeon",
         "clinic_name": user.clinic_name or "City Dental & Surgical Center",
         "license_number": user.license_number or "REG-8849201",
+        "phone": user.phone or "+91 98765 43210",
         "avatar_url": avatar_url
     })
 
@@ -455,6 +458,7 @@ def update_profile():
             new_specialty = request.form.get('specialty', '').strip()
             new_clinic = request.form.get('clinic_name', '').strip()
             new_license = request.form.get('license_number', '').strip()
+            new_phone = request.form.get('phone', '').strip()
 
             if 'avatar' in request.files:
                 file = request.files['avatar']
@@ -469,6 +473,7 @@ def update_profile():
             new_specialty = data.get('specialty', '').strip()
             new_clinic = data.get('clinic_name', '').strip()
             new_license = data.get('license_number', '').strip()
+            new_phone = data.get('phone', '').strip()
 
         if not new_name or not new_email:
             return jsonify({"status": "error", "message": "Name and email are required."}), 400
@@ -483,6 +488,7 @@ def update_profile():
         if new_specialty: user.specialty = new_specialty
         if new_clinic: user.clinic_name = new_clinic
         if new_license: user.license_number = new_license
+        if new_phone: user.phone = new_phone
 
         db.session.commit()
 
@@ -500,6 +506,7 @@ def update_profile():
             "specialty": user.specialty,
             "clinic_name": user.clinic_name,
             "license_number": user.license_number,
+            "phone": user.phone or "+91 98765 43210",
             "avatar_url": avatar_url
         })
     except Exception as e:
