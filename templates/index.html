@@ -119,12 +119,12 @@
     <div id="app-view" class="hidden">
         <div id="mySidebar" class="sidebar">
             <a href="javascript:void(0)" class="closebtn" onclick="closeNav()">&times;</a>
-            <div id="location-bar" class="location-display" onclick="detectLocation()" title="Click to refresh live location" style="cursor: pointer;">📡 Detecting live location...</div>
             <a href="javascript:void(0)" onclick="showPage('profile-page'); fetchProfile();">👤 My Profile</a>
             <a href="javascript:void(0)" onclick="showPage('home-page')">🏠 Home</a>
             <a href="javascript:void(0)" onclick="showPage('predict-page')">⚙️ Implant Prediction</a>
             <a href="javascript:void(0)" onclick="showPage('history-page'); fetchHistory();">📋 View History</a>
             <a href="javascript:void(0)" onclick="showPage('analytics-page'); renderAnalyticsDashboard();">📊 Analytics Dashboard</a>
+            <a href="javascript:void(0)" id="pwa-install-sidebar-btn" onclick="triggerPWAInstall()" style="color: #27ae60;">📲 Install Mobile App</a>
             <a href="javascript:void(0)" onclick="logout()" class="logout-link">🚪 Logout</a>
         </div>
 
