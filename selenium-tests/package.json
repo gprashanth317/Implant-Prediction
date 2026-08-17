@@ -1,0 +1,24 @@
+{
+  "name": "implantai-selenium-tests",
+  "version": "1.0.0",
+  "description": "Selenium WebDriver E2E Automation Testing Suite for Maxillofacial Implant Survival Predictor",
+  "main": "tests/login-tests.js",
+  "scripts": {
+    "test": "node tests/login-tests.js",
+    "generate-report": "python generate_test_report_excel.py"
+  },
+  "keywords": [
+    "selenium",
+    "webdriver",
+    "e2e",
+    "testing",
+    "qa",
+    "automation"
+  ],
+  "author": "ImplantAI QA Team",
+  "license": "ISC",
+  "dependencies": {
+    "selenium-webdriver": "^4.20.0",
+    "chromedriver": "^124.0.0"
+  }
+}
