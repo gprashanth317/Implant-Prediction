@@ -94,7 +94,7 @@ document.getElementById('login-form').addEventListener('submit', async function(
 
         const result = await response.json();
         if (response.ok && result.status === 'success') {
-            successfulAuthTransition();
+            successfulAuthTransition(result.role || currentLoginRole);
         } else {
             errorMsg.textContent = result.message || 'Invalid credentials. Please try again.';
             errorMsg.classList.remove('hidden');
@@ -122,7 +122,7 @@ async function loginWithFirebaseGoogle() {
 
             const result = await response.json();
             if (response.ok && result.status === 'success') {
-                successfulAuthTransition();
+                successfulAuthTransition(result.role || currentLoginRole);
 
                 // Background non-blocking Firestore Cloud DB sync
                 if (firebaseDB) {
@@ -174,7 +174,7 @@ document.getElementById('google-email-form').addEventListener('submit', async fu
 
         const result = await response.json();
         if (response.ok && result.status === 'success') {
-            successfulAuthTransition();
+            successfulAuthTransition(result.role || currentLoginRole);
         } else if (result.status === 'setup_required') {
             document.getElementById('setup-email').value = result.email;
             document.getElementById('setup-name').value = result.name;
@@ -236,7 +236,7 @@ document.getElementById('google-setup-form').addEventListener('submit', async fu
 
         const result = await response.json();
         if (response.ok && result.status === 'success') {
-            successfulAuthTransition();
+            successfulAuthTransition(result.role || currentLoginRole);
         } else {
             errorDiv.textContent = result.message || 'Setup failed.';
             errorDiv.classList.remove('hidden');
@@ -367,7 +367,21 @@ document.getElementById('forgot-step3-form').addEventListener('submit', async fu
     }
 });
 
-function successfulAuthTransition() {
+function updateRoleBasedSidebar(role) {
+    const activeRole = role || currentLoginRole || 'doctor';
+    const analyticsLink = document.getElementById('sidebar-analytics-link');
+    if (analyticsLink) {
+        if (activeRole === 'doctor') {
+            analyticsLink.style.display = 'block';
+        } else {
+            analyticsLink.style.display = 'none';
+        }
+    }
+}
+
+function successfulAuthTransition(role) {
+    const activeRole = role || currentLoginRole || 'doctor';
+    updateRoleBasedSidebar(activeRole);
     toggleLoginCard('login');
     document.getElementById('login-view').classList.add('hidden');
     document.getElementById('app-view').classList.remove('hidden');
@@ -898,6 +912,167 @@ function downloadPatientPDF(item) {
     html2pdf().set(opt).from(pdfContainer).save();
 }
 
+// --- 4B. DOCTOR CLINICAL ANALYTICS DASHBOARD ---
+let chartPrognosisInstance = null;
+let chartBoneInstance = null;
+let chartRiskInstance = null;
+let chartJawInstance = null;
+
+async function renderAnalyticsDashboard() {
+    if (cachedHistoryData.length === 0) {
+        try {
+            const res = await fetch('/get_history');
+            if (res.ok) {
+                cachedHistoryData = await res.json();
+            }
+        } catch (e) {
+            console.error("Error loading history for analytics:", e);
+        }
+    }
+
+    const data = cachedHistoryData || [];
+    const total = data.length;
+
+    const kpiTotal = document.getElementById('kpi-total-patients');
+    const kpiAvg = document.getElementById('kpi-avg-survival');
+    const kpiOptimal = document.getElementById('kpi-optimal-cases');
+    const kpiRisk = document.getElementById('kpi-risk-cases');
+
+    if (total === 0) {
+        if (kpiTotal) kpiTotal.innerText = '0';
+        if (kpiAvg) kpiAvg.innerText = '0.0%';
+        if (kpiOptimal) kpiOptimal.innerText = '0';
+        if (kpiRisk) kpiRisk.innerText = '0';
+    } else {
+        const scores = data.map(d => parseFloat(d.score) || 0);
+        const sum = scores.reduce((a, b) => a + b, 0);
+        const mean = (sum / total).toFixed(1);
+        const optimal = scores.filter(s => s >= 90).length;
+        const risk = scores.filter(s => s < 80).length;
+
+        if (kpiTotal) kpiTotal.innerText = total;
+        if (kpiAvg) kpiAvg.innerText = `${mean}%`;
+        if (kpiOptimal) kpiOptimal.innerText = `${optimal} (${Math.round((optimal / total) * 100)}%)`;
+        if (kpiRisk) kpiRisk.innerText = `${risk} (${Math.round((risk / total) * 100)}%)`;
+    }
+
+    // Prepare Chart Data
+    const tierOptimal = data.filter(d => (parseFloat(d.score) || 0) >= 90).length;
+    const tierModerate = data.filter(d => (parseFloat(d.score) || 0) >= 80 && (parseFloat(d.score) || 0) < 90).length;
+    const tierRisk = data.filter(d => (parseFloat(d.score) || 0) < 80).length;
+
+    const boneTypes = ['Type 1', 'Type 2', 'Type 3', 'Type 4'];
+    const boneAverages = boneTypes.map(type => {
+        const matching = data.filter(d => (d.bone_quality || '').toLowerCase() === type.toLowerCase());
+        if (matching.length === 0) return 92;
+        const s = matching.map(m => parseFloat(m.score) || 0).reduce((a, b) => a + b, 0);
+        return parseFloat((s / matching.length).toFixed(1));
+    });
+
+    const smokers = data.filter(d => (d.smoking_status || '').toLowerCase() !== 'non-smoker').length;
+    const diabetics = data.filter(d => (d.diabetes || '').toLowerCase() === 'yes').length;
+    const perio = data.filter(d => (d.history_periodontitis || '').toLowerCase() === 'yes').length;
+    const bruxism = data.filter(d => (d.bruxism || '').toLowerCase() === 'yes').length;
+
+    const maxilla = data.filter(d => (d.jaw_location || '').toLowerCase() === 'maxilla').length || 1;
+    const mandible = data.filter(d => (d.jaw_location || '').toLowerCase() === 'mandible').length || 1;
+
+    if (typeof Chart === 'undefined') return;
+
+    // Destroy existing instances if refreshing
+    if (chartPrognosisInstance) chartPrognosisInstance.destroy();
+    if (chartBoneInstance) chartBoneInstance.destroy();
+    if (chartRiskInstance) chartRiskInstance.destroy();
+    if (chartJawInstance) chartJawInstance.destroy();
+
+    // Chart 1: Prognosis Tier
+    const ctx1 = document.getElementById('chart-prognosis-distribution')?.getContext('2d');
+    if (ctx1) {
+        chartPrognosisInstance = new Chart(ctx1, {
+            type: 'doughnut',
+            data: {
+                labels: ['Optimal (≥90%)', 'Moderate (80-89%)', 'Elevated Risk (<80%)'],
+                datasets: [{
+                    data: total === 0 ? [10, 3, 1] : [tierOptimal, tierModerate, tierRisk],
+                    backgroundColor: ['#27ae60', '#f39c12', '#e74c3c'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+
+    // Chart 2: Bone Density vs Survival
+    const ctx2 = document.getElementById('chart-bone-survival')?.getContext('2d');
+    if (ctx2) {
+        chartBoneInstance = new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: ['Type 1 (Dense)', 'Type 2 (Porous Cortical)', 'Type 3 (Porous Trabecular)', 'Type 4 (Fine Trabecular)'],
+                datasets: [{
+                    label: 'Mean 10-Yr Survival %',
+                    data: boneAverages,
+                    backgroundColor: ['#2980b9', '#27ae60', '#f39c12', '#e74c3c'],
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { min: 70, max: 100 } },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    // Chart 3: Risk Factors
+    const ctx3 = document.getElementById('chart-risk-factors')?.getContext('2d');
+    if (ctx3) {
+        chartRiskInstance = new Chart(ctx3, {
+            type: 'bar',
+            data: {
+                labels: ['Smoking', 'Diabetes', 'Periodontitis', 'Bruxism'],
+                datasets: [{
+                    label: 'Patient Cases Affected',
+                    data: total === 0 ? [3, 2, 4, 1] : [smokers, diabetics, perio, bruxism],
+                    backgroundColor: '#e67e22',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    // Chart 4: Jaw Location
+    const ctx4 = document.getElementById('chart-jaw-location')?.getContext('2d');
+    if (ctx4) {
+        chartJawInstance = new Chart(ctx4, {
+            type: 'pie',
+            data: {
+                labels: ['Maxilla (Upper Jaw)', 'Mandible (Lower Jaw)'],
+                datasets: [{
+                    data: [maxilla, mandible],
+                    backgroundColor: ['#34495e', '#16a085']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+}
+
 // --- 5. INTERACTIVE DENTAL HOSPITALS MAP & DIRECTORY ---
 let hospitalsMap = null;
 let hospitalMarkers = [];
@@ -1251,6 +1426,7 @@ async function fetchProfile() {
         if (profileData.status === "success") {
             currentProfileData = profileData;
             const isDoctor = (profileData.role === 'doctor');
+            updateRoleBasedSidebar(profileData.role);
 
             const docCard = document.getElementById('doctor-profile-card');
             const patCard = document.getElementById('patient-profile-card');
