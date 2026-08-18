@@ -124,10 +124,10 @@ async function loginWithFirebaseGoogle() {
             if (response.ok && result.status === 'success') {
                 successfulAuthTransition(result.role || currentLoginRole);
 
-                // Background non-blocking Firestore Cloud DB sync
+                // Background non-blocking Firestore Cloud DB sync (doctors/email or patients/email)
                 if (firebaseDB) {
-                    firebaseDB.collection('users').doc(user.uid).set({
-                        uid: user.uid,
+                    const collName = (currentLoginRole === 'doctor') ? 'doctors' : 'patients';
+                    firebaseDB.collection(collName).doc(googleEmail.toLowerCase()).set({
                         email: googleEmail,
                         name: googleName,
                         role: currentLoginRole,
@@ -627,13 +627,16 @@ document.getElementById('predictor-form').addEventListener('submit', async funct
             resultsCard.classList.remove('hidden');
             resultsCard.scrollIntoView({ behavior: 'smooth' });
 
-            // Non-blocking background save to Firebase Firestore
+            // Non-blocking background save to Firebase Firestore Subcollection
             if (typeof firebaseDB !== 'undefined' && firebaseDB) {
-                firebaseDB.collection('patient_history').add({
+                const userEmail = (currentProfileData && currentProfileData.email ? currentProfileData.email : 'user@clinicalportal.com').trim().toLowerCase();
+                const collName = (currentLoginRole === 'doctor') ? 'doctors' : 'patients';
+
+                firebaseDB.collection(collName).doc(userEmail).collection('patient_history').add({
                     ...lastPredictionItem,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 }).then(() => {
-                    console.log("🔥 Patient evaluation saved directly to Firebase Firestore Cloud Database!");
+                    console.log(`🔥 Patient evaluation saved directly to Firebase Firestore: ${collName}/${userEmail}/patient_history`);
                 }).catch(fsErr => {
                     console.warn("Firestore patient history save warning:", fsErr);
                 });
@@ -1613,9 +1616,10 @@ document.getElementById('profile-edit-form').addEventListener('submit', async fu
             msgDiv.textContent = '✅ ' + result.message;
             msgDiv.classList.remove('hidden');
 
-            // Sync to Firebase Firestore Client SDK
+            // Sync to Firebase Firestore Client SDK (doctors/email or patients/email)
             if (typeof firebaseDB !== 'undefined' && firebaseDB && result.email) {
-                firebaseDB.collection('users').doc(result.email).set({
+                const collName = (result.role === 'doctor') ? 'doctors' : 'patients';
+                firebaseDB.collection(collName).doc(result.email.toLowerCase()).set({
                     name: result.name,
                     email: result.email,
                     phone: result.phone,

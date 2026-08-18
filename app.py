@@ -262,22 +262,37 @@ def google_auth():
         session['user_username'] = user.username or user.email
         session['joined_date'] = user.joined_date
 
-        # Sync User profile to Firebase Firestore Cloud Database
+        # Sync User profile to Firebase Firestore Cloud Database (doctors/email or patients/email)
         if firebase_db:
             try:
-                firebase_db.collection('users').document(str(user.id)).set({
-                    "email": user.email,
+                coll_name = 'doctors' if session['user_role'] == 'doctor' else 'patients'
+                user_payload = {
                     "name": user.name,
+                    "email": user.email,
                     "username": user.username,
                     "role": session['user_role'],
-                    "is_registered": True,
-                    "specialty": user.specialty,
-                    "clinic_name": user.clinic_name,
-                    "hospital_address": user.hospital_address,
-                    "license_number": user.license_number,
                     "phone": user.phone,
+                    "is_registered": True,
                     "updated_at": firestore.SERVER_TIMESTAMP
-                }, merge=True)
+                }
+                if session['user_role'] == 'doctor':
+                    user_payload.update({
+                        "specialty": user.specialty,
+                        "clinic_name": user.clinic_name,
+                        "hospital_address": user.hospital_address,
+                        "license_number": user.license_number
+                    })
+                else:
+                    user_payload.update({
+                        "age": user.age,
+                        "gender": user.gender,
+                        "address": user.address,
+                        "patient_id": user.patient_id,
+                        "father_husband_name": user.guardian_name,
+                        "father_husband_phone": user.guardian_phone
+                    })
+                firebase_db.collection(coll_name).document(user.email.strip().lower()).set(user_payload, merge=True)
+                print(f"✅ Synced user to Firebase Firestore: {coll_name}/{user.email.strip().lower()}")
             except Exception as fe:
                 print(f"Firebase user sync warning: {fe}")
 
@@ -357,18 +372,34 @@ def complete_setup():
 
     if firebase_db:
         try:
-            firebase_db.collection('users').document(str(user.id)).set({
-                "email": user.email,
+            coll_name = 'doctors' if (user.role or 'doctor') == 'doctor' else 'patients'
+            user_payload = {
                 "name": user.name,
+                "email": user.email,
                 "username": user.username,
                 "role": user.role or "doctor",
-                "is_registered": True,
                 "phone": user.phone,
-                "specialty": user.specialty,
-                "clinic_name": user.clinic_name,
-                "hospital_address": user.hospital_address,
+                "is_registered": True,
                 "updated_at": firestore.SERVER_TIMESTAMP
-            }, merge=True)
+            }
+            if (user.role or 'doctor') == 'doctor':
+                user_payload.update({
+                    "specialty": user.specialty,
+                    "clinic_name": user.clinic_name,
+                    "hospital_address": user.hospital_address,
+                    "license_number": user.license_number
+                })
+            else:
+                user_payload.update({
+                    "age": user.age,
+                    "gender": user.gender,
+                    "address": user.address,
+                    "patient_id": user.patient_id,
+                    "father_husband_name": user.guardian_name,
+                    "father_husband_phone": user.guardian_phone
+                })
+            firebase_db.collection(coll_name).document(user.email.strip().lower()).set(user_payload, merge=True)
+            print(f"✅ Synced completed setup to Firebase Firestore: {coll_name}/{user.email.strip().lower()}")
         except Exception as fe:
             print(f"Firebase setup sync warning: {fe}")
 
@@ -657,28 +688,36 @@ def update_profile():
 
         db.session.commit()
 
-        # Sync updated User profile to Firebase Firestore Cloud Database
+        # Sync updated User profile to Firebase Firestore Cloud Database (doctors/email or patients/email)
         if firebase_db:
             try:
-                firebase_db.collection('users').document(str(user.id)).set({
-                    "email": user.email,
+                coll_name = 'doctors' if (user.role or 'doctor') == 'doctor' else 'patients'
+                user_payload = {
                     "name": user.name,
+                    "email": user.email,
                     "username": user.username,
                     "role": user.role or "doctor",
                     "phone": user.phone,
-                    "specialty": user.specialty,
-                    "clinic_name": user.clinic_name,
-                    "hospital_address": user.hospital_address,
-                    "license_number": user.license_number,
-                    "address": user.address,
-                    "age": user.age,
-                    "gender": user.gender,
-                    "patient_id": user.patient_id,
-                    "guardian_name": user.guardian_name,
-                    "guardian_phone": user.guardian_phone,
                     "updated_at": firestore.SERVER_TIMESTAMP
-                }, merge=True)
-                print(f"✅ User profile synced to Firebase Firestore for user ID: {user.id}")
+                }
+                if (user.role or 'doctor') == 'doctor':
+                    user_payload.update({
+                        "specialty": user.specialty,
+                        "clinic_name": user.clinic_name,
+                        "hospital_address": user.hospital_address,
+                        "license_number": user.license_number
+                    })
+                else:
+                    user_payload.update({
+                        "age": user.age,
+                        "gender": user.gender,
+                        "address": user.address,
+                        "patient_id": user.patient_id,
+                        "father_husband_name": user.guardian_name,
+                        "father_husband_phone": user.guardian_phone
+                    })
+                firebase_db.collection(coll_name).document(user.email.strip().lower()).set(user_payload, merge=True)
+                print(f"✅ User profile synced to Firebase Firestore: {coll_name}/{user.email.strip().lower()}")
             except Exception as fe:
                 print(f"Firebase Firestore sync warning: {fe}")
 
@@ -847,12 +886,15 @@ def predict():
         db.session.add(new_record)
         db.session.commit()
 
-        # 5. Sync Record to Firebase Firestore Cloud Database
+        # 5. Sync Record to Firebase Firestore Subcollection (doctors/{email}/patient_history or patients/{email}/patient_history)
         if firebase_db:
             try:
-                firebase_db.collection('patient_history').add({
-                    "user_id": str(user_id),
-                    "user_email": session.get('user_email', ''),
+                user_record = db.session.get(User, user_id)
+                user_role = session.get('user_role') or (user_record.role if user_record else 'doctor')
+                user_email = (session.get('user_email') or (user_record.email if user_record else 'default@clinicalportal.com')).strip().lower()
+                coll_name = 'doctors' if user_role == 'doctor' else 'patients'
+
+                history_doc = {
                     "patient_id": patient_id,
                     "patient_name": patient_name,
                     "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -870,8 +912,9 @@ def predict():
                     "implant_surface": surface_status,
                     "score": final_score,
                     "created_at": firestore.SERVER_TIMESTAMP
-                })
-                print("✅ Patient evaluation record synced to Firebase Firestore!")
+                }
+                firebase_db.collection(coll_name).document(user_email).collection('patient_history').add(history_doc)
+                print(f"✅ Synced record to Firestore subcollection: {coll_name}/{user_email}/patient_history")
             except Exception as fe:
                 print(f"Firebase Firestore sync warning: {fe}")
 
