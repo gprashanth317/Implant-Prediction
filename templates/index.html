@@ -15,6 +15,10 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
+    <!-- Leaflet CSS & JS for Interactive Hospital Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
     <!-- Firebase App, Auth & Firestore Web SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -105,6 +109,8 @@
                             </select>
                         </div>
                     </div>
+                    <div class="form-group"><input type="text" id="setup-patient-guardian-name" placeholder="Guardian Name (e.g. Robert Doe)"></div>
+                    <div class="form-group"><input type="tel" id="setup-patient-guardian-phone" placeholder="Guardian Phone Number (e.g. +91 98450 11223)"></div>
                 </div>
 
                 <div class="form-group"><input type="text" id="setup-username" placeholder="Username / Login ID" required></div>
@@ -139,9 +145,9 @@
                 </div>
             </form>
 
-            <!-- Step 3: Reset Password -->
+            <!-- Step 3: Set New Password -->
             <form id="forgot-step3-form" class="hidden">
-                <div class="form-group"><input type="password" id="forgot-new-password" placeholder="Set New Password (min 6 chars)" minlength="6" required></div>
+                <div class="form-group"><input type="password" id="forgot-new-password" placeholder="New Password (min 6 chars)" minlength="6" required></div>
                 <div class="form-group"><input type="password" id="forgot-confirm-password" placeholder="Confirm New Password" minlength="6" required></div>
                 <div id="forgot-msg-step3" class="hidden" style="margin-bottom: 10px; font-weight: bold; color: #c62828;"></div>
                 <button type="submit" class="btn-primary">Update Password & Login</button>
@@ -156,7 +162,7 @@
             <a href="javascript:void(0)" onclick="showPage('home-page')">🏠 Home</a>
             <a href="javascript:void(0)" onclick="showPage('predict-page')">⚙️ Implant Prediction</a>
             <a href="javascript:void(0)" onclick="showPage('history-page'); fetchHistory();">📋 View History</a>
-            <a href="javascript:void(0)" onclick="showPage('analytics-page'); renderAnalyticsDashboard();">📊 Analytics Dashboard</a>
+            <a href="javascript:void(0)" onclick="showPage('hospitals-page'); initHospitalsMap();">🏥 Dental Hospitals</a>
             <a href="javascript:void(0)" id="pwa-install-sidebar-btn" onclick="triggerPWAInstall()" style="color: #27ae60;">📲 Install Mobile App</a>
             <a href="javascript:void(0)" onclick="logout()" class="logout-link">🚪 Logout</a>
         </div>
@@ -205,16 +211,18 @@
                         <div id="patient-profile-card" class="hidden">
                             <h2 id="patient-profile-name" style="font-size: 2.2rem; margin-bottom: 5px; border:none; color: #1e2d3c;">John Doe</h2>
                             <p id="patient-profile-id-badge" style="color: #27ae60; font-weight: bold; font-size: 1.15rem; margin-bottom: 8px;">Patient ID: PID-2026-889</p>
-                            <div style="display: inline-block; background: #e8f8f5; color: #27ae60; padding: 4px 14px; border-radius: 20px; font-weight: 600; font-size: 0.85rem; margin-bottom: 20px;">👤 Registered Patient</div>
+                            <div style="display: inline-block; background: #e8f8f5; color: #27ae60; padding: 4px 14px; border-radius: 20px; font-weight: 600; font-size: 0.85rem; margin-bottom: 20px;">👤 Registered Patient Profile</div>
                             
                             <div style="text-align: left; background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 25px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02);">
                                 <div style="display: grid; grid-template-columns: 1fr; gap: 14px;">
                                     <p style="margin: 0; color: #334155; font-size: 1.05rem;"><strong>👤 Patient Name:</strong> <span id="patient-profile-name-field" style="color: #0f172a; font-weight: 600;">...</span></p>
                                     <p style="margin: 0; color: #334155; font-size: 1.05rem;"><strong>📞 Phone Number:</strong> <span id="patient-profile-phone" style="color: #0f172a; font-weight: 600;">...</span></p>
-                                    <p style="margin: 0; color: #334155; font-size: 1.05rem;"><strong>✉️ Email Address:</strong> <span id="patient-profile-email" style="color: #0f172a;">...</span></p>
-                                    <p style="margin: 0; color: #334155; font-size: 1.05rem;"><strong>🎂 Age & Gender:</strong> <span id="patient-profile-age-gender" style="color: #0f172a; font-weight: 600;">...</span></p>
+                                    <p style="margin: 0; color: #334155; font-size: 1.05rem;"><strong>✉️ Email ID:</strong> <span id="patient-profile-email" style="color: #0f172a; font-weight: 600;">...</span></p>
+                                    <p style="margin: 0; color: #334155; font-size: 1.05rem;"><strong>🎂 Age:</strong> <span id="patient-profile-age" style="color: #0f172a; font-weight: 600;">...</span></p>
+                                    <p style="margin: 0; color: #334155; font-size: 1.05rem;"><strong>⚧ Gender:</strong> <span id="patient-profile-gender" style="color: #0f172a; font-weight: 600;">...</span></p>
                                     <p style="margin: 0; color: #334155; font-size: 1.05rem;"><strong>🏠 Residential Address:</strong> <span id="patient-profile-address" style="color: #0f172a;">...</span></p>
-                                    <p style="margin: 0; color: #334155; font-size: 1.05rem;"><strong>🏥 Assigned Hospital:</strong> <span id="patient-profile-hospital" style="color: #0f172a;">...</span></p>
+                                    <p style="margin: 0; color: #334155; font-size: 1.05rem;"><strong>🛡️ Guardian Name:</strong> <span id="patient-profile-guardian-name" style="color: #0f172a; font-weight: 600;">...</span></p>
+                                    <p style="margin: 0; color: #334155; font-size: 1.05rem;"><strong>📱 Guardian Phone Number:</strong> <span id="patient-profile-guardian-phone" style="color: #0f172a; font-weight: 600;">...</span></p>
                                     <p style="margin: 0; color: #334155; font-size: 1.05rem;"><strong>📅 Registered Date:</strong> <span id="patient-profile-joined" style="color: #0f172a;">...</span></p>
                                 </div>
                             </div>
@@ -228,7 +236,7 @@
 
                     <!-- Edit Profile Container -->
                     <div id="profile-edit-container" class="hidden" style="max-width: 520px; margin: 0 auto; text-align: left;">
-                        <h3 id="edit-profile-title" style="margin-bottom: 20px; font-size: 1.4rem; text-align: center;">Edit Doctor Profile Details</h3>
+                        <h3 id="edit-profile-title" style="margin-bottom: 20px; font-size: 1.4rem; text-align: center;">Edit Profile Details</h3>
                         <form id="profile-edit-form" enctype="multipart/form-data">
                             <div class="form-group" style="margin-bottom: 15px;">
                                 <label style="font-weight: 600; color: #334155; display: block; margin-bottom: 6px;">Profile Photo</label>
@@ -236,7 +244,7 @@
                             </div>
                             
                             <div class="form-group" style="margin-bottom: 15px;">
-                                <label id="label-profile-name" style="font-weight: 600; color: #334155; display: block; margin-bottom: 6px;">Doctor Full Name</label>
+                                <label id="label-profile-name" style="font-weight: 600; color: #334155; display: block; margin-bottom: 6px;">Full Name</label>
                                 <input type="text" id="edit-profile-name" required style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
                             </div>
                             
@@ -267,10 +275,6 @@
 
                             <!-- Patient Edit Specific Fields -->
                             <div id="edit-patient-fields" class="hidden">
-                                <div class="form-group" style="margin-bottom: 15px;">
-                                    <label style="font-weight: 600; color: #334155; display: block; margin-bottom: 6px;">Residential Address</label>
-                                    <input type="text" id="edit-profile-address" placeholder="e.g. Flat 4B, Green Park Residences, Bangalore" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
-                                </div>
                                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                                     <div class="form-group" style="flex: 1;">
                                         <label style="font-weight: 600; color: #334155; display: block; margin-bottom: 6px;">Age</label>
@@ -284,6 +288,18 @@
                                             <option value="Other">Other</option>
                                         </select>
                                     </div>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 15px;">
+                                    <label style="font-weight: 600; color: #334155; display: block; margin-bottom: 6px;">Residential Address</label>
+                                    <input type="text" id="edit-profile-address" placeholder="e.g. Flat 4B, Green Park Residences, Bangalore" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 15px;">
+                                    <label style="font-weight: 600; color: #334155; display: block; margin-bottom: 6px;">Guardian Name</label>
+                                    <input type="text" id="edit-profile-guardian-name" placeholder="e.g. Robert Doe (Father)" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 15px;">
+                                    <label style="font-weight: 600; color: #334155; display: block; margin-bottom: 6px;">Guardian Phone Number</label>
+                                    <input type="tel" id="edit-profile-guardian-phone" placeholder="e.g. +91 98450 11223" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
                                 </div>
                             </div>
 
@@ -488,60 +504,53 @@
                 </div>
             </div>
 
-            <!-- Analytics Dashboard Section -->
-            <div id="analytics-page" class="view-section hidden">
+            <!-- Dental Hospitals & Live Map Directory Section -->
+            <div id="hospitals-page" class="view-section hidden">
                 <header>
-                    <h1>Clinical Analytics & Risk Stratification</h1>
-                    <p class="subtitle">Real-time breakdown of evaluated patient risk profiles and survival statistics.</p>
+                    <h1>🏥 Dental & Maxillofacial Hospitals</h1>
+                    <p class="subtitle">Interactive live map and direct contact directory of accredited dental hospitals, trauma centers & implant surgery clinics.</p>
                 </header>
 
-                <!-- Stat Cards Grid -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-bottom: 25px;">
-                    <div class="card" style="text-align: center; padding: 20px; border-left: 5px solid #2980b9;">
-                        <div style="font-size: 2.2rem; font-weight: bold; color: #1e2d3c;" id="analytics-total-count">0</div>
-                        <div style="color: #7f8c8d; font-weight: 500; margin-top: 5px;">👥 Total Patients Evaluated</div>
-                    </div>
-                    <div class="card" style="text-align: center; padding: 20px; border-left: 5px solid #27ae60;">
-                        <div style="font-size: 2.2rem; font-weight: bold; color: #27ae60;" id="analytics-low-risk-count">0</div>
-                        <div style="color: #27ae60; font-weight: 500; margin-top: 5px;">🟢 Low Risk (≥90% Score)</div>
-                    </div>
-                    <div class="card" style="text-align: center; padding: 20px; border-left: 5px solid #d35400;">
-                        <div style="font-size: 2.2rem; font-weight: bold; color: #d35400;" id="analytics-med-risk-count">0</div>
-                        <div style="color: #d35400; font-weight: 500; margin-top: 5px;">🟠 Medium Risk (80-89% Score)</div>
-                    </div>
-                    <div class="card" style="text-align: center; padding: 20px; border-left: 5px solid #c62828;">
-                        <div style="font-size: 2.2rem; font-weight: bold; color: #c62828;" id="analytics-high-risk-count">0</div>
-                        <div style="color: #c62828; font-weight: 500; margin-top: 5px;">🔴 High Risk (&lt;80% Score)</div>
-                    </div>
-                </div>
-
-                <!-- Visual Risk Breakdown Progress Bar -->
-                <div class="card" style="margin-bottom: 25px; padding: 25px; text-align: left;">
-                    <h3 style="margin-top:0; color: #1e2d3c; font-size: 1.2rem; margin-bottom: 15px;">📊 Risk Stratification Breakdown</h3>
-                    <div style="height: 24px; width: 100%; background: #e2e8f0; border-radius: 12px; overflow: hidden; display: flex; margin-bottom: 15px;">
-                        <div id="bar-low-risk" style="width: 0%; background: #27ae60; height: 100%; transition: width 0.5s;" title="Low Risk"></div>
-                        <div id="bar-med-risk" style="width: 0%; background: #d35400; height: 100%; transition: width 0.5s;" title="Medium Risk"></div>
-                        <div id="bar-high-risk" style="width: 0%; background: #c62828; height: 100%; transition: width 0.5s;" title="High Risk"></div>
-                    </div>
-                    <div style="display: flex; gap: 20px; font-size: 0.9rem; justify-content: center; flex-wrap: wrap;">
-                        <span><strong style="color: #27ae60;">■ Low Risk:</strong> <span id="pct-low-risk">0%</span></span>
-                        <span><strong style="color: #d35400;">■ Medium Risk:</strong> <span id="pct-med-risk">0%</span></span>
-                        <span><strong style="color: #c62828;">■ High Risk:</strong> <span id="pct-high-risk">0%</span></span>
-                    </div>
-                </div>
-
-                <!-- Classified Patient Directory & Filter Tabs -->
-                <div class="card" style="padding: 25px; text-align: left;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
-                        <h3 style="margin: 0; color: #1e2d3c; font-size: 1.2rem; border:none;">📋 Classified Patient Directory</h3>
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <button type="button" id="tab-all" class="btn-primary filter-tab" onclick="filterAnalyticsCategory('all')" style="padding: 6px 14px; font-size: 0.85rem; background: #1e2d3c;">All Patients</button>
-                            <button type="button" id="tab-low" class="btn-primary filter-tab" onclick="filterAnalyticsCategory('low')" style="padding: 6px 14px; font-size: 0.85rem; background: #27ae60;">🟢 Low Risk</button>
-                            <button type="button" id="tab-med" class="btn-primary filter-tab" onclick="filterAnalyticsCategory('medium')" style="padding: 6px 14px; font-size: 0.85rem; background: #d35400;">🟠 Medium Risk</button>
-                            <button type="button" id="tab-high" class="btn-primary filter-tab" onclick="filterAnalyticsCategory('high')" style="padding: 6px 14px; font-size: 0.85rem; background: #c62828;">🔴 High Risk</button>
+                <!-- Search & Filter Controls -->
+                <div class="card" style="padding: 18px 24px; margin-bottom: 20px; text-align: left;">
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+                        <div style="flex: 2; min-width: 250px;">
+                            <input type="text" id="hospital-search-input" onkeyup="filterHospitals()" placeholder="🔍 Search dental hospitals by name, area, or specialty..." style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem;">
+                        </div>
+                        <div style="flex: 1; min-width: 200px;">
+                            <select id="hospital-specialty-filter" onchange="filterHospitals()" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; background: #fff;">
+                                <option value="all">🌐 All Specialties</option>
+                                <option value="implant">🦷 Dental Implantology</option>
+                                <option value="maxillofacial">🩺 Maxillofacial Surgery</option>
+                                <option value="emergency">🚨 24x7 Emergency Dental</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" class="btn-primary" onclick="locateUserOnMap()" style="padding: 10px 16px; font-size: 0.9rem; background: #2980b9; display: flex; align-items: center; gap: 6px;">📍 Locate Me</button>
+                            <button type="button" class="btn-primary" onclick="resetHospitalMapView()" style="padding: 10px 16px; font-size: 0.9rem; background: #64748b;">🔄 Reset View</button>
                         </div>
                     </div>
-                    <ul id="analytics-patient-list" class="history-list" style="padding-left:0; list-style:none;"></ul>
+                </div>
+
+                <!-- Live Interactive Map Card -->
+                <div class="card" style="padding: 15px; margin-bottom: 25px;">
+                    <div id="hospitals-map" style="height: 480px; width: 100%; border-radius: 10px; border: 1px solid #cbd5e1; z-index: 1; background: #f1f5f9;"></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 0.85rem; color: #64748b; padding: 0 5px;">
+                        <span>📍 Showing accredited dental hospitals with 24x7 emergency & implantology facilities</span>
+                        <span id="hospital-count-badge" style="font-weight: bold; color: #1e2d3c;">8 Hospitals Listed</span>
+                    </div>
+                </div>
+
+                <!-- Dental Hospitals Directory Below Map -->
+                <div class="card" style="padding: 25px; text-align: left;">
+                    <div style="border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 20px;">
+                        <h2 style="margin: 0; color: #1e2d3c; font-size: 1.4rem; border: none;">📋 Dental Hospitals & Direct Contact Numbers</h2>
+                        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.9rem;">Click phone numbers to call directly or click 'View on Map' to highlight location</p>
+                    </div>
+                    
+                    <div id="hospitals-list-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px;">
+                        <!-- Rendered dynamically by script.js -->
+                    </div>
                 </div>
             </div>
         </div>

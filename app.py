@@ -74,6 +74,8 @@ class User(db.Model):
     age = db.Column(db.Integer, nullable=True, default=45)
     gender = db.Column(db.String(20), nullable=True, default='Male')
     patient_id = db.Column(db.String(50), nullable=True, default='PID-2026-001')
+    guardian_name = db.Column(db.String(150), nullable=True, default='Robert Doe (Father)')
+    guardian_phone = db.Column(db.String(50), nullable=True, default='+91 98450 11223')
     avatar_filename = db.Column(db.String(255), nullable=True, default='default_avatar.png')
 
 class PatientHistory(db.Model):
@@ -295,6 +297,8 @@ def complete_setup():
     clinic_name = data.get('clinic_name', '').strip()
     hospital_address = data.get('hospital_address', '').strip()
     address = data.get('address', '').strip()
+    guardian_name = data.get('guardian_name', '').strip()
+    guardian_phone = data.get('guardian_phone', '').strip()
 
     if not email or not desired_username or not desired_password:
         return jsonify({"status": "error", "message": "All setup fields are required."}), 400
@@ -330,6 +334,10 @@ def complete_setup():
         user.hospital_address = hospital_address
     if address:
         user.address = address
+    if guardian_name:
+        user.guardian_name = guardian_name
+    if guardian_phone:
+        user.guardian_phone = guardian_phone
 
     user.is_registered = True
     db.session.commit()
@@ -528,11 +536,13 @@ def get_profile():
             "clinic_name": "City Dental & Maxillofacial Hospital",
             "hospital_address": "104 Medical Enclave, Healthcare City, Chennai, 600077",
             "license_number": "REG-8849201",
-            "phone": "+91 98765 43210",
+            "phone": "+91 98765 43210" if role == 'doctor' else "+91 98123 45678",
             "address": "Flat 4B, Green Park Residences, Bangalore",
             "age": 48,
             "gender": "Male",
             "patient_id": "PID-2026-889",
+            "guardian_name": "Robert Doe (Father)",
+            "guardian_phone": "+91 98450 11223",
             "avatar_url": None
         })
 
@@ -545,7 +555,7 @@ def get_profile():
         "email": user.email,
         "username": user.username or user.email,
         "joined": user.joined_date,
-        "phone": user.phone or "+91 98765 43210",
+        "phone": user.phone or ("+91 98765 43210" if user.role == 'doctor' else "+91 98123 45678"),
         "specialty": user.specialty or "Maxillofacial Surgeon & Implant Specialist",
         "clinic_name": user.clinic_name or "City Dental & Maxillofacial Hospital",
         "hospital_address": user.hospital_address or "104 Medical Enclave, Healthcare City, Chennai, 600077",
@@ -554,6 +564,8 @@ def get_profile():
         "age": user.age or 45,
         "gender": user.gender or "Male",
         "patient_id": user.patient_id or f"PID-2026-{user.id:03d}",
+        "guardian_name": user.guardian_name or "Robert Doe (Father)",
+        "guardian_phone": user.guardian_phone or "+91 98450 11223",
         "avatar_url": avatar_url
     })
 
@@ -578,6 +590,8 @@ def update_profile():
             new_address = request.form.get('address', '').strip()
             new_age = request.form.get('age', '').strip()
             new_gender = request.form.get('gender', '').strip()
+            new_guardian_name = request.form.get('guardian_name', '').strip()
+            new_guardian_phone = request.form.get('guardian_phone', '').strip()
 
             if 'avatar' in request.files:
                 file = request.files['avatar']
@@ -597,6 +611,8 @@ def update_profile():
             new_address = data.get('address', '').strip()
             new_age = data.get('age', '')
             new_gender = data.get('gender', '').strip()
+            new_guardian_name = data.get('guardian_name', '').strip()
+            new_guardian_phone = data.get('guardian_phone', '').strip()
 
         if not new_name or not new_email:
             return jsonify({"status": "error", "message": "Name and email are required."}), 400
@@ -618,6 +634,8 @@ def update_profile():
             try: user.age = int(new_age)
             except: pass
         if new_gender: user.gender = new_gender
+        if new_guardian_name: user.guardian_name = new_guardian_name
+        if new_guardian_phone: user.guardian_phone = new_guardian_phone
 
         db.session.commit()
 
@@ -642,6 +660,8 @@ def update_profile():
             "age": user.age,
             "gender": user.gender,
             "patient_id": user.patient_id,
+            "guardian_name": user.guardian_name,
+            "guardian_phone": user.guardian_phone,
             "avatar_url": avatar_url
         })
     except Exception as e:

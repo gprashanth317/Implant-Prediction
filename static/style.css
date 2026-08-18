@@ -385,3 +385,23 @@ header h1 {
         justify-content: space-between;
     }
 }
+
+/* Dental Hospitals Map & Pin Styles */
+.custom-dental-pin, .user-location-pin {
+    background: transparent;
+    border: none;
+}
+
+.leaflet-popup-content-wrapper {
+    border-radius: 10px !important;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.18) !important;
+}
+
+.leaflet-popup-content {
+    margin: 12px 14px !important;
+    line-height: 1.4 !important;
+}
+
+#hospitals-map {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+}

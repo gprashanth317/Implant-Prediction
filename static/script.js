@@ -206,6 +206,8 @@ document.getElementById('google-setup-form').addEventListener('submit', async fu
     const address = document.getElementById('setup-patient-address')?.value || '';
     const age = document.getElementById('setup-patient-age')?.value || '';
     const gender = document.getElementById('setup-patient-gender')?.value || 'Male';
+    const guardianName = document.getElementById('setup-patient-guardian-name')?.value || '';
+    const guardianPhone = document.getElementById('setup-patient-guardian-phone')?.value || '';
 
     const errorDiv = document.getElementById('setup-error');
     errorDiv.classList.add('hidden');
@@ -226,7 +228,9 @@ document.getElementById('google-setup-form').addEventListener('submit', async fu
                 hospital_address: hospAddr,
                 address: address,
                 age: age,
-                gender: gender
+                gender: gender,
+                guardian_name: guardianName,
+                guardian_phone: guardianPhone
             })
         });
 
@@ -894,100 +898,339 @@ function downloadPatientPDF(item) {
     html2pdf().set(opt).from(pdfContainer).save();
 }
 
-// --- ANALYTICS DASHBOARD LOGIC ---
-async function renderAnalyticsDashboard() {
-    try {
-        const response = await fetch('/get_history');
-        if (response.ok) {
-            cachedHistoryData = await response.json();
-        }
-    } catch (e) {
-        console.warn("Analytics fetch error", e);
+// --- 5. INTERACTIVE DENTAL HOSPITALS MAP & DIRECTORY ---
+let hospitalsMap = null;
+let hospitalMarkers = [];
+let userLocationMarker = null;
+
+const DENTAL_HOSPITALS = [
+    {
+        id: 1,
+        name: "Saveetha Dental & Maxillofacial Hospital",
+        phone: "+91 44 2680 1580",
+        altPhone: "+91 98410 23456",
+        address: "Saveetha Nagar, 162 Poonamallee High Rd, Chennai, Tamil Nadu 600077",
+        lat: 13.0544,
+        lng: 80.0967,
+        specialties: ["Oral & Maxillofacial Surgery", "Immediate Dental Implants", "Zygomatic Implants"],
+        emergency: "🚨 24x7 Emergency Trauma Unit",
+        rating: "4.9 ⭐⭐⭐⭐⭐",
+        category: "maxillofacial"
+    },
+    {
+        id: 2,
+        name: "Apollo Dental & Craniofacial Center",
+        phone: "+91 44 2829 0200",
+        altPhone: "1800 102 0288",
+        address: "Greams Road, Thousand Lights, Chennai, Tamil Nadu 600006",
+        lat: 13.0604,
+        lng: 80.2496,
+        specialties: ["Full-Mouth Dental Rehabilitation", "3D Guided Implantology", "Bone Regeneration"],
+        emergency: "🚨 24x7 Dental Emergency Care",
+        rating: "4.8 ⭐⭐⭐⭐⭐",
+        category: "implant"
+    },
+    {
+        id: 3,
+        name: "Tamil Nadu Govt Dental College & Hospital",
+        phone: "+91 44 2534 0343",
+        altPhone: "+91 44 2534 0344",
+        address: "Frazer Bridge Road, Opp. Fort Station, George Town, Chennai, Tamil Nadu 600003",
+        lat: 13.0837,
+        lng: 80.2838,
+        specialties: ["Oral & Maxillofacial Trauma", "Periodontal Surgery", "Prosthodontic Implants"],
+        emergency: "🚨 24x7 Trauma & Casualty Center",
+        rating: "4.7 ⭐⭐⭐⭐⭐",
+        category: "emergency"
+    },
+    {
+        id: 4,
+        name: "Balaji Dental & Craniofacial Hospital",
+        phone: "+91 44 2432 6222",
+        altPhone: "+91 98401 77777",
+        address: "30 KB Dasan Road, Teynampet, Chennai, Tamil Nadu 600018",
+        lat: 13.0368,
+        lng: 80.2520,
+        specialties: ["Craniofacial Implant Surgery", "Microvascular Reconstruction", "Advanced Bone Grafting"],
+        emergency: "🚨 24x7 Surgical ICU & Emergency",
+        rating: "4.9 ⭐⭐⭐⭐⭐",
+        category: "maxillofacial"
+    },
+    {
+        id: 5,
+        name: "Sri Ramachandra Dental Hospital & Research Institute",
+        phone: "+91 44 2476 8027",
+        altPhone: "+91 44 4592 8500",
+        address: "No. 1 Ramachandra Nagar, Porur, Chennai, Tamil Nadu 600116",
+        lat: 13.0382,
+        lng: 80.1418,
+        specialties: ["Laser Implantology", "Cleft & Craniofacial Center", "Oral Oncology & Implants"],
+        emergency: "🚨 24x7 Emergency Hospital Care",
+        rating: "4.8 ⭐⭐⭐⭐⭐",
+        category: "implant"
+    },
+    {
+        id: 6,
+        name: "Meenakshi Ammal Dental College & Hospital",
+        phone: "+91 44 2378 0177",
+        altPhone: "+91 44 2378 0178",
+        address: "Alapakkam Main Road, Maduravoyal, Chennai, Tamil Nadu 600095",
+        lat: 13.0569,
+        lng: 80.1612,
+        specialties: ["Basal Implantology", "Sinus Lift & Bone Augmentation", "Pediatric & Geriatric Care"],
+        emergency: "🚨 24x7 Casualty Available",
+        rating: "4.6 ⭐⭐⭐⭐",
+        category: "emergency"
+    },
+    {
+        id: 7,
+        name: "Ragas Dental College & Multi-Specialty Hospital",
+        phone: "+91 44 2453 0001",
+        altPhone: "+91 44 2453 0002",
+        address: "2/102 East Coast Road, Uthandi, Chennai, Tamil Nadu 600119",
+        lat: 12.8732,
+        lng: 80.2476,
+        specialties: ["Implant Prosthodontics", "Guided Flapless Surgery", "Cosmetic Dentofacial Surgery"],
+        emergency: "🚨 24x7 Dental Emergency Helpdesk",
+        rating: "4.7 ⭐⭐⭐⭐⭐",
+        category: "implant"
+    },
+    {
+        id: 8,
+        name: "Global Health City Dental & Implant Institute",
+        phone: "+91 44 4477 7000",
+        altPhone: "+91 99400 12345",
+        address: "439 Cheran Nagar, Perumbakkam, Chennai, Tamil Nadu 600100",
+        lat: 12.9038,
+        lng: 80.1915,
+        specialties: ["Computer-Guided All-on-4 Implants", "Digital Smile Design", "Maxillofacial Trauma"],
+        emergency: "🚨 24x7 Emergency Trauma Unit",
+        rating: "4.8 ⭐⭐⭐⭐⭐",
+        category: "maxillofacial"
+    }
+];
+
+function initHospitalsMap() {
+    const mapContainer = document.getElementById('hospitals-map');
+    if (!mapContainer) return;
+
+    if (!hospitalsMap && typeof L !== 'undefined') {
+        // Initialize Leaflet Map centered on central healthcare hub
+        hospitalsMap = L.map('hospitals-map').setView([13.0450, 80.2000], 11);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors | Dental Care GIS'
+        }).addTo(hospitalsMap);
     }
 
-    const data = cachedHistoryData || [];
-    const total = data.length;
+    // Refresh markers & grid
+    filterHospitals();
 
-    const lowRisk = data.filter(d => d.score >= 90);
-    const medRisk = data.filter(d => d.score >= 80 && d.score < 90);
-    const highRisk = data.filter(d => d.score < 80);
-
-    const lowPct = total > 0 ? Math.round((lowRisk.length / total) * 100) : 0;
-    const medPct = total > 0 ? Math.round((medRisk.length / total) * 100) : 0;
-    const highPct = total > 0 ? Math.round((highRisk.length / total) * 100) : 0;
-
-    document.getElementById('analytics-total-count').innerText = total;
-    document.getElementById('analytics-low-risk-count').innerText = `${lowRisk.length} (${lowPct}%)`;
-    document.getElementById('analytics-med-risk-count').innerText = `${medRisk.length} (${medPct}%)`;
-    document.getElementById('analytics-high-risk-count').innerText = `${highRisk.length} (${highPct}%)`;
-
-    document.getElementById('bar-low-risk').style.width = `${lowPct}%`;
-    document.getElementById('bar-med-risk').style.width = `${medPct}%`;
-    document.getElementById('bar-high-risk').style.width = `${highPct}%`;
-
-    document.getElementById('pct-low-risk').innerText = `${lowPct}% (${lowRisk.length} pts)`;
-    document.getElementById('pct-med-risk').innerText = `${medPct}% (${medRisk.length} pts)`;
-    document.getElementById('pct-high-risk').innerText = `${highPct}% (${highRisk.length} pts)`;
-
-    filterAnalyticsCategory(currentAnalyticsCategory);
+    // Leaflet map resize trigger after CSS tab transition
+    setTimeout(() => {
+        if (hospitalsMap) {
+            hospitalsMap.invalidateSize();
+            fitHospitalBounds(DENTAL_HOSPITALS);
+        }
+    }, 200);
 }
 
-function filterAnalyticsCategory(category) {
-    currentAnalyticsCategory = category;
-    
-    document.querySelectorAll('.filter-tab').forEach(b => b.style.opacity = '0.7');
-    const activeBtn = document.getElementById(`tab-${category}`);
-    if (activeBtn) activeBtn.style.opacity = '1.0';
+function renderHospitalMarkers(hospitals) {
+    if (!hospitalsMap || typeof L === 'undefined') return;
 
-    const listElement = document.getElementById('analytics-patient-list');
-    listElement.innerHTML = '';
+    // Clear existing markers
+    hospitalMarkers.forEach(m => hospitalsMap.removeLayer(m));
+    hospitalMarkers = [];
 
-    let filtered = cachedHistoryData || [];
-    if (category === 'low') {
-        filtered = filtered.filter(d => d.score >= 90);
-    } else if (category === 'medium') {
-        filtered = filtered.filter(d => d.score >= 80 && d.score < 90);
-    } else if (category === 'high') {
-        filtered = filtered.filter(d => d.score < 80);
+    const hospitalIcon = L.divIcon({
+        className: 'custom-dental-pin',
+        html: `<div style="background:#1e2d3c; color:#fff; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; box-shadow:0 3px 8px rgba(0,0,0,0.3); border:2px solid #27ae60;">🏥</div>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 34],
+        popupAnchor: [0, -32]
+    });
+
+    hospitals.forEach((h, index) => {
+        const popupContent = `
+            <div style="font-family:inherit; min-width:220px; text-align:left; padding:4px;">
+                <h4 style="margin:0 0 5px 0; color:#1e2d3c; font-size:1.05rem;">🏥 ${h.name}</h4>
+                <p style="margin:0 0 6px 0; color:#64748b; font-size:0.85rem;">📍 ${h.address}</p>
+                <div style="margin-bottom:8px; font-weight:bold; color:#27ae60; font-size:0.85rem;">${h.emergency}</div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
+                    ${h.specialties.map(s => `<span style="background:#e8f4fd; color:#2980b9; font-size:0.75rem; padding:2px 8px; border-radius:10px; font-weight:600;">${s}</span>`).join('')}
+                </div>
+                <a href="tel:${h.phone.replace(/\s+/g, '')}" style="display:block; text-align:center; background:#27ae60; color:#fff; text-decoration:none; padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.9rem; margin-top:6px;">📞 Call: ${h.phone}</a>
+            </div>
+        `;
+
+        const marker = L.marker([h.lat, h.lng], { icon: hospitalIcon })
+            .addTo(hospitalsMap)
+            .bindPopup(popupContent);
+        
+        hospitalMarkers.push(marker);
+    });
+}
+
+function fitHospitalBounds(hospitals) {
+    if (!hospitalsMap || hospitals.length === 0 || typeof L === 'undefined') return;
+    const group = L.featureGroup(hospitalMarkers);
+    if (group.getLayers().length > 0) {
+        hospitalsMap.fitBounds(group.getBounds().pad(0.15));
     }
+}
 
-    if (filtered.length === 0) {
-        listElement.innerHTML = '<li style="color:#7f8c8d; text-align: center; padding: 20px;">No patients found in this risk classification category.</li>';
+function renderHospitalsGrid(hospitals) {
+    const container = document.getElementById('hospitals-list-grid');
+    const badge = document.getElementById('hospital-count-badge');
+    if (!container) return;
+
+    if (badge) badge.innerText = `${hospitals.length} Hospitals Listed`;
+
+    if (hospitals.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: 1/-1; text-align:center; padding:30px; color:#64748b;">
+                <p style="font-size:1.1rem;">🔍 No dental hospitals found matching your search.</p>
+                <button type="button" class="btn-primary" onclick="resetHospitalMapView()" style="padding:8px 16px; font-size:0.9rem; background:#1e2d3c;">Show All Hospitals</button>
+            </div>
+        `;
         return;
     }
 
-    filtered.slice().reverse().forEach(item => {
-        const riskCategory = item.score >= 90 ? '🟢 Low Risk' : (item.score >= 80 ? '🟠 Medium Risk' : '🔴 High Risk');
-        const badgeColor = item.score >= 90 ? '#27ae60' : (item.score >= 80 ? '#d35400' : '#c62828');
-
-        const li = document.createElement('li');
-        li.style.display = 'flex';
-        li.style.justifyContent = 'space-between';
-        li.style.alignItems = 'center';
-        li.style.padding = '15px 20px';
-        li.style.marginBottom = '12px';
-        li.style.background = '#f8f9fa';
-        li.style.borderRadius = '8px';
-        li.style.border = '1px solid #e2e8f0';
-
-        li.innerHTML = `
-            <div style="text-align: left;">
-                <div style="font-size: 1.15rem; font-weight: bold; color: #1e2d3c;">
-                    👤 ${item.patient_name} <span style="font-size: 0.85rem; color: #7f8c8d; font-weight: normal;">(ID: ${item.patient_id})</span>
+    container.innerHTML = hospitals.map((h, i) => `
+        <div class="card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; text-align:left; box-shadow:0 4px 12px rgba(0,0,0,0.04); display:flex; flex-direction:column; justify-content:space-between; transition:transform 0.2s, box-shadow 0.2s;">
+            <div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                    <h3 style="margin:0; font-size:1.15rem; color:#1e2d3c; font-weight:bold;">🏥 ${h.name}</h3>
                 </div>
-                <div style="color: #7f8c8d; font-size: 0.85rem; margin-top: 4px;">
-                    📅 Evaluated: ${item.date} | Age: ${item.age} yrs | Bone: ${item.bone_quality} | Jaw: ${item.jaw_location}
+                <div style="color:#f39c12; font-size:0.85rem; font-weight:bold; margin-bottom:10px;">${h.rating}</div>
+                
+                <div style="background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #edf2f7; margin-bottom:12px;">
+                    <div style="font-size:0.9rem; color:#334155; margin-bottom:6px;">
+                        <strong>📍 Address:</strong> ${h.address}
+                    </div>
+                    <div style="font-size:0.85rem; color:#27ae60; font-weight:600; margin-bottom:4px;">
+                        ${h.emergency}
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:15px;">
+                    ${h.specialties.map(s => `<span style="background:#e8f4fd; color:#2980b9; font-size:0.75rem; padding:3px 8px; border-radius:12px; font-weight:600;">${s}</span>`).join('')}
                 </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <span style="font-size: 0.85rem; font-weight: bold; padding: 4px 10px; border-radius: 4px; color: white; background: ${badgeColor};">
-                    ${riskCategory} (${item.score}%)
-                </span>
-                <button type="button" class="btn-primary" onclick="downloadPatientPDFById(${item.id})" style="padding: 6px 10px; font-size: 0.85rem; background: #27ae60;" title="Download PDF Report">📄 PDF</button>
+
+            <div style="border-top:1px solid #f1f5f9; padding-top:14px; display:flex; flex-direction:column; gap:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:0.85rem; color:#64748b;">Primary Contact:</span>
+                    <a href="tel:${h.phone.replace(/\s+/g, '')}" style="font-weight:bold; color:#27ae60; text-decoration:none; font-size:1rem; display:flex; align-items:center; gap:4px;">
+                        📞 ${h.phone}
+                    </a>
+                </div>
+                ${h.altPhone ? `
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:0.85rem; color:#64748b;">Helpline:</span>
+                    <a href="tel:${h.altPhone.replace(/\s+/g, '')}" style="font-weight:600; color:#2980b9; text-decoration:none; font-size:0.9rem;">
+                        📱 ${h.altPhone}
+                    </a>
+                </div>` : ''}
+
+                <div style="display:flex; gap:8px; margin-top:5px;">
+                    <a href="tel:${h.phone.replace(/\s+/g, '')}" class="btn-primary" style="flex:1; text-align:center; padding:8px 12px; font-size:0.9rem; text-decoration:none; background:#27ae60; display:flex; align-items:center; justify-content:center; gap:5px;">
+                        📞 Call Now
+                    </a>
+                    <button type="button" class="btn-primary" onclick="focusHospitalOnMap(${h.id})" style="flex:1; padding:8px 12px; font-size:0.9rem; background:#1e2d3c; display:flex; align-items:center; justify-content:center; gap:5px;">
+                        🗺️ View on Map
+                    </button>
+                </div>
             </div>
-        `;
-        listElement.appendChild(li);
+        </div>
+    `).join('');
+}
+
+function filterHospitals() {
+    const searchVal = (document.getElementById('hospital-search-input')?.value || '').toLowerCase().trim();
+    const filterCat = document.getElementById('hospital-specialty-filter')?.value || 'all';
+
+    let filtered = DENTAL_HOSPITALS.filter(h => {
+        const matchesCat = (filterCat === 'all') || (h.category === filterCat) || h.specialties.some(s => s.toLowerCase().includes(filterCat));
+        const matchesSearch = !searchVal || 
+            h.name.toLowerCase().includes(searchVal) || 
+            h.address.toLowerCase().includes(searchVal) || 
+            h.phone.includes(searchVal) || 
+            h.specialties.some(s => s.toLowerCase().includes(searchVal));
+        return matchesCat && matchesSearch;
     });
+
+    renderHospitalMarkers(filtered);
+    renderHospitalsGrid(filtered);
+}
+
+function focusHospitalOnMap(hospitalId) {
+    const hospital = DENTAL_HOSPITALS.find(h => h.id === hospitalId);
+    if (!hospital || !hospitalsMap) return;
+
+    // Scroll smoothly to map
+    const mapEl = document.getElementById('hospitals-map');
+    if (mapEl) mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    hospitalsMap.setView([hospital.lat, hospital.lng], 15, { animate: true });
+
+    // Open marker popup
+    const targetMarker = hospitalMarkers.find(m => {
+        const latLng = m.getLatLng();
+        return Math.abs(latLng.lat - hospital.lat) < 0.0001 && Math.abs(latLng.lng - hospital.lng) < 0.0001;
+    });
+
+    if (targetMarker) {
+        targetMarker.openPopup();
+    }
+}
+
+function locateUserOnMap() {
+    if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser.");
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+
+            if (hospitalsMap && typeof L !== 'undefined') {
+                if (userLocationMarker) hospitalsMap.removeLayer(userLocationMarker);
+
+                const userIcon = L.divIcon({
+                    className: 'user-location-pin',
+                    html: `<div style="background:#2980b9; color:#fff; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; box-shadow:0 0 10px #2980b9; border:2px solid #fff;">📍</div>`,
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14]
+                });
+
+                userLocationMarker = L.marker([lat, lng], { icon: userIcon })
+                    .addTo(hospitalsMap)
+                    .bindPopup("<b>📍 You Are Here</b><br>Searching nearest dental hospitals...")
+                    .openPopup();
+
+                hospitalsMap.setView([lat, lng], 13, { animate: true });
+            }
+        },
+        (err) => {
+            console.warn("Geolocation prompt:", err.message);
+            alert("Unable to retrieve your current location. Centering on default healthcare region.");
+            resetHospitalMapView();
+        }
+    );
+}
+
+function resetHospitalMapView() {
+    const searchInput = document.getElementById('hospital-search-input');
+    const filterDropdown = document.getElementById('hospital-specialty-filter');
+    if (searchInput) searchInput.value = '';
+    if (filterDropdown) filterDropdown.value = 'all';
+
+    filterHospitals();
+    fitHospitalBounds(DENTAL_HOSPITALS);
 }
 
 // --- 6. PROFILE LOGIC (DOCTOR & PATIENT VIEWS) ---
@@ -1064,14 +1307,14 @@ async function fetchProfile() {
                 document.getElementById('edit-profile-license').value = profileData.license_number || 'REG-8849201';
                 document.getElementById('edit-profile-email').value = profileData.email || '';
             } else {
-                // PATIENT PROFILE VIEW
+                // PATIENT PROFILE VIEW - ALL 8 ATTRIBUTES
                 if (docCard) docCard.classList.add('hidden');
                 if (patCard) patCard.classList.remove('hidden');
                 if (editDocFields) editDocFields.classList.add('hidden');
                 if (editPatFields) editPatFields.classList.remove('hidden');
 
                 if (pageHeader) pageHeader.textContent = "👤 Patient Profile";
-                if (pageSub) pageSub.textContent = "View and manage your personal medical and contact information";
+                if (pageSub) pageSub.textContent = "View and manage your personal medical, contact and guardian details";
                 if (editTitle) editTitle.textContent = "Edit Patient Profile Details";
                 if (labelName) labelName.textContent = "Patient Full Name";
 
@@ -1079,11 +1322,13 @@ async function fetchProfile() {
                 document.getElementById('patient-profile-name-field').textContent = profileData.name;
                 document.getElementById('patient-profile-phone').textContent = profileData.phone || "+91 98123 45678";
                 document.getElementById('patient-profile-email').textContent = profileData.email;
-                document.getElementById('patient-profile-id-badge').textContent = `Patient ID: ${profileData.patient_id || 'PID-2026-889'}`;
-                document.getElementById('patient-profile-age-gender').textContent = `${profileData.age || 48} Years / ${profileData.gender || 'Male'}`;
+                document.getElementById('patient-profile-age').textContent = `${profileData.age || 48} Years`;
+                document.getElementById('patient-profile-gender').textContent = profileData.gender || 'Male';
                 document.getElementById('patient-profile-address').textContent = profileData.address || "Flat 4B, Green Park Residences, Bangalore";
-                document.getElementById('patient-profile-hospital').textContent = profileData.clinic_name || "City Dental & Maxillofacial Hospital";
+                document.getElementById('patient-profile-guardian-name').textContent = profileData.guardian_name || "Robert Doe (Father)";
+                document.getElementById('patient-profile-guardian-phone').textContent = profileData.guardian_phone || "+91 98450 11223";
                 document.getElementById('patient-profile-joined').textContent = profileData.joined;
+                document.getElementById('patient-profile-id-badge').textContent = `Patient ID: ${profileData.patient_id || 'PID-2026-889'}`;
 
                 if (avatarIcon) avatarIcon.textContent = "👤";
 
@@ -1093,6 +1338,8 @@ async function fetchProfile() {
                 document.getElementById('edit-profile-address').value = profileData.address || '';
                 document.getElementById('edit-profile-age').value = profileData.age || 45;
                 document.getElementById('edit-profile-gender').value = profileData.gender || 'Male';
+                document.getElementById('edit-profile-guardian-name').value = profileData.guardian_name || 'Robert Doe (Father)';
+                document.getElementById('edit-profile-guardian-phone').value = profileData.guardian_phone || '+91 98450 11223';
                 document.getElementById('edit-profile-email').value = profileData.email || '';
             }
 
@@ -1171,6 +1418,8 @@ document.getElementById('profile-edit-form').addEventListener('submit', async fu
     formData.append('address', document.getElementById('edit-profile-address')?.value || '');
     formData.append('age', document.getElementById('edit-profile-age')?.value || '');
     formData.append('gender', document.getElementById('edit-profile-gender')?.value || 'Male');
+    formData.append('guardian_name', document.getElementById('edit-profile-guardian-name')?.value || '');
+    formData.append('guardian_phone', document.getElementById('edit-profile-guardian-phone')?.value || '');
 
     const avatarFile = document.getElementById('edit-profile-avatar').files[0];
     if (avatarFile) {
