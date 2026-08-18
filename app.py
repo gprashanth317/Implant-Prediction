@@ -64,10 +64,16 @@ class User(db.Model):
     joined_date = db.Column(db.String(50), nullable=False)
     password = db.Column(db.String(255), nullable=False, default='password')
     is_registered = db.Column(db.Boolean, default=True)
+    role = db.Column(db.String(50), nullable=True, default='doctor')
     specialty = db.Column(db.String(150), nullable=True, default='Maxillofacial Surgeon')
     clinic_name = db.Column(db.String(150), nullable=True, default='City Dental & Surgical Center')
+    hospital_address = db.Column(db.String(255), nullable=True, default='104 Medical Enclave, Healthcare City, Chennai')
     license_number = db.Column(db.String(100), nullable=True, default='REG-8849201')
     phone = db.Column(db.String(50), nullable=True, default='+91 98765 43210')
+    address = db.Column(db.String(255), nullable=True, default='123 Main Street')
+    age = db.Column(db.Integer, nullable=True, default=45)
+    gender = db.Column(db.String(20), nullable=True, default='Male')
+    patient_id = db.Column(db.String(50), nullable=True, default='PID-2026-001')
     avatar_filename = db.Column(db.String(255), nullable=True, default='default_avatar.png')
 
 class PatientHistory(db.Model):
@@ -127,6 +133,7 @@ def login():
     data = request.json or {}
     user_input = data.get('username', '').strip()
     password = data.get('password', '').strip()
+    selected_role = data.get('role', '').strip().lower()
 
     if not user_input or not password:
         return jsonify({"status": "error", "message": "Username/Email and Password are required."}), 400
@@ -136,18 +143,39 @@ def login():
         (func.lower(User.email) == user_input.lower())
     ).first()
     
-    # Fallback default admin user initialization
+    # Fallback default admin / patient user initialization
     if not user and (user_input.lower() == 'admin' or user_input.lower() == 'admin@clinicalportal.com'):
         user = User(
             email='admin@clinicalportal.com',
             username='admin',
-            name='System Administrator',
+            name='Dr. Sarah Smith',
             password='password',
             joined_date=datetime.now().strftime("%Y-%m-%d"),
             is_registered=True,
-            specialty='Maxillofacial Surgeon',
-            clinic_name='City Dental & Surgical Center',
+            role='doctor',
+            specialty='Maxillofacial Surgeon & Implant Specialist',
+            clinic_name='City Dental & Maxillofacial Hospital',
+            hospital_address='104 Medical Enclave, Healthcare City, Chennai, 600077',
+            phone='+91 98765 43210',
             license_number='REG-8849201'
+        )
+        db.session.add(user)
+        db.session.commit()
+    elif not user and (user_input.lower() == 'patient' or user_input.lower() == 'patient@clinicalportal.com'):
+        user = User(
+            email='patient@clinicalportal.com',
+            username='patient',
+            name='John Doe',
+            password='password',
+            joined_date=datetime.now().strftime("%Y-%m-%d"),
+            is_registered=True,
+            role='patient',
+            phone='+91 98123 45678',
+            address='Flat 4B, Green Park Residences, Bangalore',
+            age=48,
+            gender='Male',
+            patient_id='PID-2026-889',
+            clinic_name='City Dental & Maxillofacial Hospital'
         )
         db.session.add(user)
         db.session.commit()
@@ -157,9 +185,15 @@ def login():
         session['user_name'] = user.name
         session['user_email'] = user.email
         session['user_username'] = user.username or user.email
+        session['user_role'] = user.role or 'doctor'
         session['joined_date'] = user.joined_date
 
-        return jsonify({"status": "success", "message": "Authenticated successfully."})
+        return jsonify({
+            "status": "success", 
+            "message": "Authenticated successfully.",
+            "role": user.role or "doctor",
+            "name": user.name
+        })
 
     return jsonify({"status": "error", "message": "Invalid username/email or password."}), 401
 
@@ -168,6 +202,7 @@ def google_auth():
     data = request.json or {}
     email = data.get('email', '').strip()
     name = data.get('name', '').strip()
+    role = data.get('role', 'doctor').strip().lower() or 'doctor'
 
     if not email:
         return jsonify({"status": "error", "message": "Email is required."}), 400
@@ -180,22 +215,27 @@ def google_auth():
         user = User(
             email=email_clean, 
             username=email_clean.split('@')[0],
-            name=name or 'Doctor User', 
+            name=name or ('Dr. ' + email_clean.split('@')[0].capitalize() if role == 'doctor' else email_clean.split('@')[0].capitalize()), 
             password='',
             joined_date=datetime.now().strftime("%Y-%m-%d"),
             is_registered=False,
-            specialty='Dental Practitioner',
-            clinic_name='Medical Center',
-            license_number='REG-8849201'
+            role=role,
+            specialty='Maxillofacial Surgeon & Implant Specialist' if role == 'doctor' else 'General Patient',
+            clinic_name='City Dental & Maxillofacial Hospital',
+            hospital_address='104 Medical Enclave, Healthcare City, Chennai, 600077',
+            phone='+91 98765 43210' if role == 'doctor' else '+91 98123 45678',
+            license_number='REG-8849201' if role == 'doctor' else None,
+            address='123 Main Street, Healthcare District'
         )
         db.session.add(user)
         db.session.commit()
 
         return jsonify({
             "status": "setup_required",
-            "message": "First time login. Please create your account password.",
+            "message": f"First time {role.capitalize()} login. Please create your account password.",
             "email": user.email,
-            "name": user.name
+            "name": user.name,
+            "role": user.role or role
         })
 
     # 2. REGISTERED USER: Email already has a created password -> NEVER ask again! Direct Login!
@@ -204,6 +244,7 @@ def google_auth():
         session['user_name'] = user.name
         session['user_email'] = user.email
         session['user_username'] = user.username or user.email
+        session['user_role'] = user.role or 'doctor'
         session['joined_date'] = user.joined_date
 
         # Sync User profile to Firebase Firestore Cloud Database
@@ -213,23 +254,32 @@ def google_auth():
                     "email": user.email,
                     "name": user.name,
                     "username": user.username,
+                    "role": user.role or "doctor",
                     "is_registered": True,
                     "specialty": user.specialty,
                     "clinic_name": user.clinic_name,
+                    "hospital_address": user.hospital_address,
                     "license_number": user.license_number,
+                    "phone": user.phone,
                     "updated_at": firestore.SERVER_TIMESTAMP
                 }, merge=True)
             except Exception as fe:
                 print(f"Firebase user sync warning: {fe}")
 
-        return jsonify({"status": "success", "message": "Google authentication verified successfully."})
+        return jsonify({
+            "status": "success", 
+            "message": "Google authentication verified successfully.",
+            "role": user.role or "doctor",
+            "name": user.name
+        })
 
     # 3. User created previously but never completed setting password -> Ask to complete password setup
     return jsonify({
         "status": "setup_required",
-        "message": "First time login. Please complete setting up your account password.",
+        "message": f"First time {user.role or role} login. Please complete setting up your account password.",
         "email": user.email,
-        "name": user.name
+        "name": user.name,
+        "role": user.role or role
     })
 
 @app.route('/auth/complete_setup', methods=['POST'])
@@ -239,6 +289,12 @@ def complete_setup():
     desired_username = data.get('username', '').strip()
     desired_password = data.get('password', '').strip()
     full_name = data.get('name', '').strip()
+    role = data.get('role', '').strip().lower()
+    phone = data.get('phone', '').strip()
+    specialty = data.get('specialty', '').strip()
+    clinic_name = data.get('clinic_name', '').strip()
+    hospital_address = data.get('hospital_address', '').strip()
+    address = data.get('address', '').strip()
 
     if not email or not desired_username or not desired_password:
         return jsonify({"status": "error", "message": "All setup fields are required."}), 400
@@ -262,6 +318,19 @@ def complete_setup():
     user.password = desired_password
     if full_name:
         user.name = full_name
+    if role:
+        user.role = role
+    if phone:
+        user.phone = phone
+    if specialty:
+        user.specialty = specialty
+    if clinic_name:
+        user.clinic_name = clinic_name
+    if hospital_address:
+        user.hospital_address = hospital_address
+    if address:
+        user.address = address
+
     user.is_registered = True
     db.session.commit()
 
@@ -271,7 +340,12 @@ def complete_setup():
                 "email": user.email,
                 "name": user.name,
                 "username": user.username,
+                "role": user.role or "doctor",
                 "is_registered": True,
+                "phone": user.phone,
+                "specialty": user.specialty,
+                "clinic_name": user.clinic_name,
+                "hospital_address": user.hospital_address,
                 "updated_at": firestore.SERVER_TIMESTAMP
             }, merge=True)
         except Exception as fe:
@@ -281,9 +355,15 @@ def complete_setup():
     session['user_name'] = user.name
     session['user_email'] = user.email
     session['user_username'] = user.username
+    session['user_role'] = user.role or 'doctor'
     session['joined_date'] = user.joined_date
 
-    return jsonify({"status": "success", "message": "Account setup complete! You are now logged in."})
+    return jsonify({
+        "status": "success", 
+        "message": "Account setup complete! You are now logged in.",
+        "role": user.role or "doctor",
+        "name": user.name
+    })
 
 # --- 3-STEP OTP FORGOT PASSWORD & SMTP EMAIL SERVICES ---
 import random
@@ -436,16 +516,23 @@ def logout():
 def get_profile():
     user = db.session.get(User, session.get('user_id'))
     if not user:
+        role = session.get('user_role', 'doctor')
         return jsonify({
             "status": "success",
-            "name": session.get('user_name', 'Practitioner'),
-            "email": session.get('user_email', 'doctor@clinic.com'),
-            "username": session.get('user_username', 'doctor'),
+            "role": role,
+            "name": session.get('user_name', 'Dr. Sarah Smith' if role == 'doctor' else 'John Doe'),
+            "email": session.get('user_email', 'doctor@clinic.com' if role == 'doctor' else 'patient@clinic.com'),
+            "username": session.get('user_username', 'doctor' if role == 'doctor' else 'patient'),
             "joined": session.get('joined_date', '2026-01-01'),
-            "specialty": "Maxillofacial Surgeon",
-            "clinic_name": "City Dental & Surgical Center",
+            "specialty": "Maxillofacial Surgeon & Implant Specialist",
+            "clinic_name": "City Dental & Maxillofacial Hospital",
+            "hospital_address": "104 Medical Enclave, Healthcare City, Chennai, 600077",
             "license_number": "REG-8849201",
             "phone": "+91 98765 43210",
+            "address": "Flat 4B, Green Park Residences, Bangalore",
+            "age": 48,
+            "gender": "Male",
+            "patient_id": "PID-2026-889",
             "avatar_url": None
         })
 
@@ -453,14 +540,20 @@ def get_profile():
 
     return jsonify({
         "status": "success",
+        "role": user.role or "doctor",
         "name": user.name,
         "email": user.email,
         "username": user.username or user.email,
         "joined": user.joined_date,
-        "specialty": user.specialty or "Maxillofacial Surgeon",
-        "clinic_name": user.clinic_name or "City Dental & Surgical Center",
-        "license_number": user.license_number or "REG-8849201",
         "phone": user.phone or "+91 98765 43210",
+        "specialty": user.specialty or "Maxillofacial Surgeon & Implant Specialist",
+        "clinic_name": user.clinic_name or "City Dental & Maxillofacial Hospital",
+        "hospital_address": user.hospital_address or "104 Medical Enclave, Healthcare City, Chennai, 600077",
+        "license_number": user.license_number or "REG-8849201",
+        "address": user.address or "123 Main Street, Healthcare District",
+        "age": user.age or 45,
+        "gender": user.gender or "Male",
+        "patient_id": user.patient_id or f"PID-2026-{user.id:03d}",
         "avatar_url": avatar_url
     })
 
@@ -477,10 +570,14 @@ def update_profile():
         if request.content_type and 'multipart/form-data' in request.content_type:
             new_name = request.form.get('name', '').strip()
             new_email = request.form.get('email', '').strip()
+            new_phone = request.form.get('phone', '').strip()
             new_specialty = request.form.get('specialty', '').strip()
             new_clinic = request.form.get('clinic_name', '').strip()
+            new_hosp_addr = request.form.get('hospital_address', '').strip()
             new_license = request.form.get('license_number', '').strip()
-            new_phone = request.form.get('phone', '').strip()
+            new_address = request.form.get('address', '').strip()
+            new_age = request.form.get('age', '').strip()
+            new_gender = request.form.get('gender', '').strip()
 
             if 'avatar' in request.files:
                 file = request.files['avatar']
@@ -492,25 +589,35 @@ def update_profile():
             data = request.json or {}
             new_name = data.get('name', '').strip()
             new_email = data.get('email', '').strip()
+            new_phone = data.get('phone', '').strip()
             new_specialty = data.get('specialty', '').strip()
             new_clinic = data.get('clinic_name', '').strip()
+            new_hosp_addr = data.get('hospital_address', '').strip()
             new_license = data.get('license_number', '').strip()
-            new_phone = data.get('phone', '').strip()
+            new_address = data.get('address', '').strip()
+            new_age = data.get('age', '')
+            new_gender = data.get('gender', '').strip()
 
         if not new_name or not new_email:
             return jsonify({"status": "error", "message": "Name and email are required."}), 400
 
         # Check email uniqueness
-        existing_user = User.query.filter(User.email == new_email, User.id != user_id).first()
+        existing_user = User.query.filter(func.lower(User.email) == new_email.lower(), User.id != user_id).first()
         if existing_user:
             return jsonify({"status": "error", "message": "Email address is already in use by another account."}), 400
 
         user.name = new_name
         user.email = new_email
+        if new_phone: user.phone = new_phone
         if new_specialty: user.specialty = new_specialty
         if new_clinic: user.clinic_name = new_clinic
+        if new_hosp_addr: user.hospital_address = new_hosp_addr
         if new_license: user.license_number = new_license
-        if new_phone: user.phone = new_phone
+        if new_address: user.address = new_address
+        if new_age:
+            try: user.age = int(new_age)
+            except: pass
+        if new_gender: user.gender = new_gender
 
         db.session.commit()
 
@@ -522,13 +629,19 @@ def update_profile():
         return jsonify({
             "status": "success", 
             "message": "Profile updated successfully.",
+            "role": user.role or "doctor",
             "name": user.name,
             "email": user.email,
             "username": user.username or user.email,
+            "phone": user.phone or "+91 98765 43210",
             "specialty": user.specialty,
             "clinic_name": user.clinic_name,
+            "hospital_address": user.hospital_address,
             "license_number": user.license_number,
-            "phone": user.phone or "+91 98765 43210",
+            "address": user.address,
+            "age": user.age,
+            "gender": user.gender,
+            "patient_id": user.patient_id,
             "avatar_url": avatar_url
         })
     except Exception as e:

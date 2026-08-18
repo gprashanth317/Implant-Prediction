@@ -4,7 +4,59 @@ function changeBackground(imageName) {
 }
 changeBackground('loginpage.jpg');
 
-// --- 1. ACCESS VALIDATION & SERVER AUTHENTICATION ---
+// --- 1. DUAL LOGIN (DOCTOR / PATIENT) & AUTHENTICATION ---
+let currentLoginRole = 'doctor';
+
+function selectLoginRole(role) {
+    currentLoginRole = role;
+    const docTab = document.getElementById('role-tab-doctor');
+    const patTab = document.getElementById('role-tab-patient');
+    const heading = document.getElementById('login-heading');
+    const subheading = document.getElementById('login-subheading');
+    const usernameInput = document.getElementById('username');
+    const submitBtn = document.getElementById('login-submit-btn');
+    const googleBtnText = document.getElementById('google-btn-text');
+    const setupRole = document.getElementById('setup-role');
+    const setupDocFields = document.getElementById('setup-doctor-fields');
+    const setupPatFields = document.getElementById('setup-patient-fields');
+
+    if (role === 'doctor') {
+        docTab.style.background = '#1e2d3c';
+        docTab.style.color = '#fff';
+        docTab.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+        patTab.style.background = 'transparent';
+        patTab.style.color = '#64748b';
+        patTab.style.boxShadow = 'none';
+
+        heading.textContent = '🩺 Doctor Clinical Login';
+        subheading.textContent = 'Access prognostic engine, surgical history & implant tools';
+        usernameInput.placeholder = 'Doctor Username or Email';
+        submitBtn.textContent = 'Secure Doctor Login';
+        if (googleBtnText) googleBtnText.textContent = 'Continue as Doctor with Google';
+        
+        if (setupRole) setupRole.value = 'doctor';
+        if (setupDocFields) setupDocFields.classList.remove('hidden');
+        if (setupPatFields) setupPatFields.classList.add('hidden');
+    } else {
+        patTab.style.background = '#1e2d3c';
+        patTab.style.color = '#fff';
+        patTab.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+        docTab.style.background = 'transparent';
+        docTab.style.color = '#64748b';
+        docTab.style.boxShadow = 'none';
+
+        heading.textContent = '👤 Patient Portal Login';
+        subheading.textContent = 'Access personal implant evaluations & medical records';
+        usernameInput.placeholder = 'Patient Username or Email';
+        submitBtn.textContent = 'Secure Patient Login';
+        if (googleBtnText) googleBtnText.textContent = 'Continue as Patient with Google';
+
+        if (setupRole) setupRole.value = 'patient';
+        if (setupDocFields) setupDocFields.classList.add('hidden');
+        if (setupPatFields) setupPatFields.classList.remove('hidden');
+    }
+}
+
 function toggleLoginCard(cardType) {
     const loginCard = document.querySelector('.card.login-card');
     const googleCard = document.getElementById('google-email-card');
@@ -37,7 +89,7 @@ document.getElementById('login-form').addEventListener('submit', async function(
         const response = await fetch('/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: user, password: pass })
+            body: JSON.stringify({ username: user, password: pass, role: currentLoginRole })
         });
 
         const result = await response.json();
@@ -59,13 +111,13 @@ async function loginWithFirebaseGoogle() {
             const userCredential = await firebaseAuth.signInWithPopup(googleProvider);
             const user = userCredential.user;
             const googleEmail = user.email;
-            const googleName = user.displayName || 'Doctor User';
+            const googleName = user.displayName || (currentLoginRole === 'doctor' ? 'Dr. Sarah Smith' : 'John Doe');
 
             // Authenticate session with backend FIRST
             const response = await fetch('/auth/google', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: googleName, email: googleEmail })
+                body: JSON.stringify({ name: googleName, email: googleEmail, role: currentLoginRole })
             });
 
             const result = await response.json();
@@ -78,13 +130,15 @@ async function loginWithFirebaseGoogle() {
                         uid: user.uid,
                         email: googleEmail,
                         name: googleName,
+                        role: currentLoginRole,
                         lastLogin: firebase.firestore.FieldValue.serverTimestamp()
                     }, { merge: true }).catch(err => console.warn("Firestore sync warning:", err));
                 }
             } else if (result.status === 'setup_required') {
                 document.getElementById('setup-email').value = result.email;
                 document.getElementById('setup-name').value = result.name;
-                document.getElementById('setup-username').value = result.email;
+                document.getElementById('setup-username').value = result.email.split('@')[0];
+                selectLoginRole(result.role || currentLoginRole);
                 toggleLoginCard('setup');
             } else {
                 alert(`Authentication error: ${result.message}`);
@@ -115,7 +169,7 @@ document.getElementById('google-email-form').addEventListener('submit', async fu
         const response = await fetch('/auth/google', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: name, email: email })
+            body: JSON.stringify({ name: name, email: email, role: currentLoginRole })
         });
 
         const result = await response.json();
@@ -125,6 +179,7 @@ document.getElementById('google-email-form').addEventListener('submit', async fu
             document.getElementById('setup-email').value = result.email;
             document.getElementById('setup-name').value = result.name;
             document.getElementById('setup-username').value = result.email.split('@')[0];
+            selectLoginRole(result.role || currentLoginRole);
             toggleLoginCard('setup');
         } else {
             errorDiv.textContent = result.message || 'Authentication error.';
@@ -142,15 +197,37 @@ document.getElementById('google-setup-form').addEventListener('submit', async fu
     const name = document.getElementById('setup-name').value;
     const username = document.getElementById('setup-username').value;
     const password = document.getElementById('setup-password').value;
-    const errorDiv = document.getElementById('setup-error');
+    const phone = document.getElementById('setup-phone').value;
+    const role = document.getElementById('setup-role').value || currentLoginRole;
 
+    const specialty = document.getElementById('setup-specialty')?.value || '';
+    const clinicName = document.getElementById('setup-clinic')?.value || '';
+    const hospAddr = document.getElementById('setup-hospital-address')?.value || '';
+    const address = document.getElementById('setup-patient-address')?.value || '';
+    const age = document.getElementById('setup-patient-age')?.value || '';
+    const gender = document.getElementById('setup-patient-gender')?.value || 'Male';
+
+    const errorDiv = document.getElementById('setup-error');
     errorDiv.classList.add('hidden');
 
     try {
         const response = await fetch('/auth/complete_setup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email, name: name, username: username, password: password })
+            body: JSON.stringify({ 
+                email: email, 
+                name: name, 
+                username: username, 
+                password: password,
+                role: role,
+                phone: phone,
+                specialty: specialty,
+                clinic_name: clinicName,
+                hospital_address: hospAddr,
+                address: address,
+                age: age,
+                gender: gender
+            })
         });
 
         const result = await response.json();
@@ -913,12 +990,16 @@ function filterAnalyticsCategory(category) {
     });
 }
 
-// --- 6. PROFILE LOGIC ---
+// --- 6. PROFILE LOGIC (DOCTOR & PATIENT VIEWS) ---
 let currentDoctorProfile = {
-    name: 'Dr. Physician',
+    role: 'doctor',
+    name: 'Dr. Sarah Smith',
     phone: '+91 98765 43210',
-    email: '',
-    clinic_name: 'City Dental & Surgical Center'
+    specialty: 'Maxillofacial Surgeon & Implant Specialist',
+    clinic_name: 'City Dental & Maxillofacial Hospital',
+    hospital_address: '104 Medical Enclave, Healthcare City, Chennai, 600077',
+    license_number: 'REG-8849201',
+    email: 'doctor@clinic.com'
 };
 
 async function fetchProfile() {
@@ -935,19 +1016,85 @@ async function fetchProfile() {
 
         if (profileData.status === "success") {
             currentDoctorProfile = profileData;
+            const isDoctor = (profileData.role === 'doctor');
 
-            document.getElementById('profile-name').textContent = profileData.name;
-            document.getElementById('profile-email').textContent = profileData.email;
-            document.getElementById('profile-joined').textContent = profileData.joined;
-            document.getElementById('profile-specialty').textContent = profileData.specialty || "Maxillofacial Surgeon";
-            document.getElementById('profile-clinic').textContent = profileData.clinic_name || "City Dental & Surgical Center";
-            document.getElementById('profile-license').textContent = profileData.license_number || "REG-8849201";
-            
-            const phoneEl = document.getElementById('profile-phone');
-            if (phoneEl) phoneEl.textContent = profileData.phone || "+91 98765 43210";
+            const docCard = document.getElementById('doctor-profile-card');
+            const patCard = document.getElementById('patient-profile-card');
+            const editDocFields = document.getElementById('edit-doctor-fields');
+            const editPatFields = document.getElementById('edit-patient-fields');
+            const pageHeader = document.getElementById('profile-page-header');
+            const pageSub = document.getElementById('profile-page-sub');
+            const editTitle = document.getElementById('edit-profile-title');
+            const labelName = document.getElementById('label-profile-name');
 
             const avatarIcon = document.getElementById('profile-avatar-icon');
             const avatarImg = document.getElementById('profile-avatar-img');
+
+            if (isDoctor) {
+                // DOCTOR PROFILE VIEW
+                if (docCard) docCard.classList.remove('hidden');
+                if (patCard) patCard.classList.add('hidden');
+                if (editDocFields) editDocFields.classList.remove('hidden');
+                if (editPatFields) editPatFields.classList.add('hidden');
+
+                if (pageHeader) pageHeader.textContent = "👨‍⚕️ Doctor Profile";
+                if (pageSub) pageSub.textContent = "Manage your medical credentials and clinical hospital information";
+                if (editTitle) editTitle.textContent = "Edit Doctor Profile Details";
+                if (labelName) labelName.textContent = "Doctor Full Name";
+
+                document.getElementById('doctor-profile-name').textContent = profileData.name;
+                document.getElementById('doctor-profile-name-field').textContent = profileData.name;
+                document.getElementById('doctor-profile-phone').textContent = profileData.phone || "+91 98765 43210";
+                document.getElementById('doctor-profile-specialty').textContent = profileData.specialty || "Maxillofacial Surgeon & Implant Specialist";
+                document.getElementById('doctor-profile-specialty-badge').textContent = profileData.specialty || "Maxillofacial Surgeon & Implant Specialist";
+                document.getElementById('doctor-profile-hospital-name').textContent = profileData.clinic_name || "City Dental & Maxillofacial Hospital";
+                document.getElementById('doctor-profile-hospital-address').textContent = profileData.hospital_address || "104 Medical Enclave, Healthcare City, Chennai, 600077";
+                document.getElementById('doctor-profile-email').textContent = profileData.email;
+                document.getElementById('doctor-profile-license').textContent = profileData.license_number || "REG-8849201";
+                document.getElementById('doctor-profile-joined').textContent = profileData.joined;
+
+                if (avatarIcon) avatarIcon.textContent = "👨‍⚕️";
+
+                // Pre-fill Doctor Edit fields
+                document.getElementById('edit-profile-name').value = profileData.name || '';
+                document.getElementById('edit-profile-phone').value = profileData.phone || '+91 98765 43210';
+                document.getElementById('edit-profile-specialty').value = profileData.specialty || 'Maxillofacial Surgeon & Implant Specialist';
+                document.getElementById('edit-profile-clinic').value = profileData.clinic_name || 'City Dental & Maxillofacial Hospital';
+                document.getElementById('edit-profile-hospital-address').value = profileData.hospital_address || '104 Medical Enclave, Healthcare City, Chennai';
+                document.getElementById('edit-profile-license').value = profileData.license_number || 'REG-8849201';
+                document.getElementById('edit-profile-email').value = profileData.email || '';
+            } else {
+                // PATIENT PROFILE VIEW
+                if (docCard) docCard.classList.add('hidden');
+                if (patCard) patCard.classList.remove('hidden');
+                if (editDocFields) editDocFields.classList.add('hidden');
+                if (editPatFields) editPatFields.classList.remove('hidden');
+
+                if (pageHeader) pageHeader.textContent = "👤 Patient Profile";
+                if (pageSub) pageSub.textContent = "View and manage your personal medical and contact information";
+                if (editTitle) editTitle.textContent = "Edit Patient Profile Details";
+                if (labelName) labelName.textContent = "Patient Full Name";
+
+                document.getElementById('patient-profile-name').textContent = profileData.name;
+                document.getElementById('patient-profile-name-field').textContent = profileData.name;
+                document.getElementById('patient-profile-phone').textContent = profileData.phone || "+91 98123 45678";
+                document.getElementById('patient-profile-email').textContent = profileData.email;
+                document.getElementById('patient-profile-id-badge').textContent = `Patient ID: ${profileData.patient_id || 'PID-2026-889'}`;
+                document.getElementById('patient-profile-age-gender').textContent = `${profileData.age || 48} Years / ${profileData.gender || 'Male'}`;
+                document.getElementById('patient-profile-address').textContent = profileData.address || "Flat 4B, Green Park Residences, Bangalore";
+                document.getElementById('patient-profile-hospital').textContent = profileData.clinic_name || "City Dental & Maxillofacial Hospital";
+                document.getElementById('patient-profile-joined').textContent = profileData.joined;
+
+                if (avatarIcon) avatarIcon.textContent = "👤";
+
+                // Pre-fill Patient Edit fields
+                document.getElementById('edit-profile-name').value = profileData.name || '';
+                document.getElementById('edit-profile-phone').value = profileData.phone || '+91 98123 45678';
+                document.getElementById('edit-profile-address').value = profileData.address || '';
+                document.getElementById('edit-profile-age').value = profileData.age || 45;
+                document.getElementById('edit-profile-gender').value = profileData.gender || 'Male';
+                document.getElementById('edit-profile-email').value = profileData.email || '';
+            }
 
             if (profileData.avatar_url) {
                 avatarImg.src = profileData.avatar_url;
@@ -957,15 +1104,6 @@ async function fetchProfile() {
                 avatarImg.classList.add('hidden');
                 avatarIcon.classList.remove('hidden');
             }
-
-            // Pre-fill edit fields
-            document.getElementById('edit-profile-name').value = profileData.name || '';
-            document.getElementById('edit-profile-email').value = profileData.email || '';
-            document.getElementById('edit-profile-specialty').value = profileData.specialty || '';
-            document.getElementById('edit-profile-clinic').value = profileData.clinic_name || '';
-            document.getElementById('edit-profile-license').value = profileData.license_number || '';
-            const editPhoneEl = document.getElementById('edit-profile-phone');
-            if (editPhoneEl) editPhoneEl.value = profileData.phone || '+91 98765 43210';
         }
     } catch (error) {
         console.error("Error fetching profile:", error);
@@ -1022,9 +1160,17 @@ document.getElementById('profile-edit-form').addEventListener('submit', async fu
     formData.append('name', document.getElementById('edit-profile-name').value);
     formData.append('email', document.getElementById('edit-profile-email').value);
     formData.append('phone', document.getElementById('edit-profile-phone')?.value || '');
-    formData.append('specialty', document.getElementById('edit-profile-specialty').value);
-    formData.append('clinic_name', document.getElementById('edit-profile-clinic').value);
-    formData.append('license_number', document.getElementById('edit-profile-license').value);
+    
+    // Doctor fields
+    formData.append('specialty', document.getElementById('edit-profile-specialty')?.value || '');
+    formData.append('clinic_name', document.getElementById('edit-profile-clinic')?.value || '');
+    formData.append('hospital_address', document.getElementById('edit-profile-hospital-address')?.value || '');
+    formData.append('license_number', document.getElementById('edit-profile-license')?.value || '');
+    
+    // Patient fields
+    formData.append('address', document.getElementById('edit-profile-address')?.value || '');
+    formData.append('age', document.getElementById('edit-profile-age')?.value || '');
+    formData.append('gender', document.getElementById('edit-profile-gender')?.value || 'Male');
 
     const avatarFile = document.getElementById('edit-profile-avatar').files[0];
     if (avatarFile) {
