@@ -1233,132 +1233,10 @@ function resetHospitalMapView() {
     fitHospitalBounds(DENTAL_HOSPITALS);
 }
 
-// --- 6. PROFILE LOGIC (DOCTOR & PATIENT VIEWS) ---
+// --- 6. PROFILE LOGIC (STRICT ROLE-EXCLUSIVE DOCTOR VS PATIENT) ---
 let currentProfileData = null;
 
-function switchProfileRole(role) {
-    if (!currentProfileData) {
-        fetchProfile(role);
-        return;
-    }
-    renderProfileView(currentProfileData, role);
-}
-
-function renderProfileView(profileData, activeRole) {
-    const isDoctor = (activeRole === 'doctor');
-
-    const docCard = document.getElementById('doctor-profile-card');
-    const patCard = document.getElementById('patient-profile-card');
-    const editDocFields = document.getElementById('edit-doctor-fields');
-    const editPatFields = document.getElementById('edit-patient-fields');
-    const pageHeader = document.getElementById('profile-page-header');
-    const pageSub = document.getElementById('profile-page-sub');
-    const editTitle = document.getElementById('edit-profile-title');
-    const labelName = document.getElementById('label-profile-name');
-
-    const docTabBtn = document.getElementById('profile-role-tab-doctor');
-    const patTabBtn = document.getElementById('profile-role-tab-patient');
-
-    const avatarIcon = document.getElementById('profile-avatar-icon');
-    const avatarImg = document.getElementById('profile-avatar-img');
-
-    if (docTabBtn && patTabBtn) {
-        if (isDoctor) {
-            docTabBtn.style.background = '#1e2d3c';
-            docTabBtn.style.color = '#fff';
-            patTabBtn.style.background = 'transparent';
-            patTabBtn.style.color = '#64748b';
-        } else {
-            patTabBtn.style.background = '#1e2d3c';
-            patTabBtn.style.color = '#fff';
-            docTabBtn.style.background = 'transparent';
-            docTabBtn.style.color = '#64748b';
-        }
-    }
-
-    if (isDoctor) {
-        // DOCTOR PROFILE VIEW
-        if (docCard) docCard.classList.remove('hidden');
-        if (patCard) patCard.classList.add('hidden');
-        if (editDocFields) editDocFields.classList.remove('hidden');
-        if (editPatFields) editPatFields.classList.add('hidden');
-
-        if (pageHeader) pageHeader.textContent = "👨‍⚕️ Doctor Profile";
-        if (pageSub) pageSub.textContent = "Manage your medical credentials and clinical hospital information";
-        if (editTitle) editTitle.textContent = "Edit Doctor Profile Details";
-        if (labelName) labelName.textContent = "Doctor Full Name";
-
-        const docName = (profileData.name && !profileData.name.includes('(Patient)')) ? profileData.name : 'Dr. Sarah Smith';
-        document.getElementById('doctor-profile-name').textContent = docName;
-        document.getElementById('doctor-profile-name-field').textContent = docName;
-        document.getElementById('doctor-profile-phone').textContent = profileData.phone || "+91 98765 43210";
-        document.getElementById('doctor-profile-specialty').textContent = profileData.specialty || "Maxillofacial Surgeon & Implant Specialist";
-        document.getElementById('doctor-profile-specialty-badge').textContent = profileData.specialty || "Maxillofacial Surgeon & Implant Specialist";
-        document.getElementById('doctor-profile-hospital-name').textContent = profileData.clinic_name || "City Dental & Maxillofacial Hospital";
-        document.getElementById('doctor-profile-hospital-address').textContent = profileData.hospital_address || "104 Medical Enclave, Healthcare City, Chennai, 600077";
-        document.getElementById('doctor-profile-email').textContent = profileData.email;
-        document.getElementById('doctor-profile-license').textContent = profileData.license_number || "REG-8849201";
-        document.getElementById('doctor-profile-joined').textContent = profileData.joined;
-
-        if (avatarIcon) avatarIcon.textContent = "👨‍⚕️";
-
-        // Pre-fill Doctor Edit fields
-        document.getElementById('edit-profile-name').value = docName;
-        document.getElementById('edit-profile-phone').value = profileData.phone || '+91 98765 43210';
-        document.getElementById('edit-profile-specialty').value = profileData.specialty || 'Maxillofacial Surgeon & Implant Specialist';
-        document.getElementById('edit-profile-clinic').value = profileData.clinic_name || 'City Dental & Maxillofacial Hospital';
-        document.getElementById('edit-profile-hospital-address').value = profileData.hospital_address || '104 Medical Enclave, Healthcare City, Chennai';
-        document.getElementById('edit-profile-license').value = profileData.license_number || 'REG-8849201';
-        document.getElementById('edit-profile-email').value = profileData.email || '';
-    } else {
-        // PATIENT PROFILE VIEW - ALL 8 ATTRIBUTES
-        if (docCard) docCard.classList.add('hidden');
-        if (patCard) patCard.classList.remove('hidden');
-        if (editDocFields) editDocFields.classList.add('hidden');
-        if (editPatFields) editPatFields.classList.remove('hidden');
-
-        if (pageHeader) pageHeader.textContent = "👤 Patient Profile";
-        if (pageSub) pageSub.textContent = "View and manage your personal medical, contact and guardian details";
-        if (editTitle) editTitle.textContent = "Edit Patient Profile Details";
-        if (labelName) labelName.textContent = "Patient Full Name";
-
-        const patName = (profileData.name && !profileData.name.includes('Dr.') && !profileData.name.includes('Doctor') && !profileData.name.includes('System Administrator')) ? profileData.name : 'John Doe';
-        document.getElementById('patient-profile-name').textContent = patName;
-        document.getElementById('patient-profile-name-field').textContent = patName;
-        document.getElementById('patient-profile-phone').textContent = profileData.phone || "+91 98123 45678";
-        document.getElementById('patient-profile-email').textContent = profileData.email;
-        document.getElementById('patient-profile-age').textContent = `${profileData.age || 48} Years`;
-        document.getElementById('patient-profile-gender').textContent = profileData.gender || 'Male';
-        document.getElementById('patient-profile-address').textContent = profileData.address || "Flat 4B, Green Park Residences, Bangalore";
-        document.getElementById('patient-profile-guardian-name').textContent = profileData.guardian_name || "Robert Doe (Father)";
-        document.getElementById('patient-profile-guardian-phone').textContent = profileData.guardian_phone || "+91 98450 11223";
-        document.getElementById('patient-profile-joined').textContent = profileData.joined;
-        document.getElementById('patient-profile-id-badge').textContent = `Patient ID: ${profileData.patient_id || 'PID-2026-889'}`;
-
-        if (avatarIcon) avatarIcon.textContent = "👤";
-
-        // Pre-fill Patient Edit fields
-        document.getElementById('edit-profile-name').value = patName;
-        document.getElementById('edit-profile-phone').value = profileData.phone || '+91 98123 45678';
-        document.getElementById('edit-profile-address').value = profileData.address || '';
-        document.getElementById('edit-profile-age').value = profileData.age || 45;
-        document.getElementById('edit-profile-gender').value = profileData.gender || 'Male';
-        document.getElementById('edit-profile-guardian-name').value = profileData.guardian_name || 'Robert Doe (Father)';
-        document.getElementById('edit-profile-guardian-phone').value = profileData.guardian_phone || '+91 98450 11223';
-        document.getElementById('edit-profile-email').value = profileData.email || '';
-    }
-
-    if (profileData.avatar_url) {
-        avatarImg.src = profileData.avatar_url;
-        avatarImg.classList.remove('hidden');
-        avatarIcon.classList.add('hidden');
-    } else {
-        avatarImg.classList.add('hidden');
-        avatarIcon.classList.remove('hidden');
-    }
-}
-
-async function fetchProfile(overrideRole) {
+async function fetchProfile() {
     try {
         const response = await fetch('/get_profile');
         
@@ -1372,8 +1250,100 @@ async function fetchProfile(overrideRole) {
 
         if (profileData.status === "success") {
             currentProfileData = profileData;
-            const targetRole = overrideRole || profileData.role || (currentLoginRole || 'doctor');
-            renderProfileView(profileData, targetRole);
+            const isDoctor = (profileData.role === 'doctor');
+
+            const docCard = document.getElementById('doctor-profile-card');
+            const patCard = document.getElementById('patient-profile-card');
+            const editDocFields = document.getElementById('edit-doctor-fields');
+            const editPatFields = document.getElementById('edit-patient-fields');
+            const pageHeader = document.getElementById('profile-page-header');
+            const pageSub = document.getElementById('profile-page-sub');
+            const editTitle = document.getElementById('edit-profile-title');
+            const labelName = document.getElementById('label-profile-name');
+
+            const avatarIcon = document.getElementById('profile-avatar-icon');
+            const avatarImg = document.getElementById('profile-avatar-img');
+
+            if (isDoctor) {
+                // DOCTOR PROFILE ONLY
+                if (docCard) docCard.classList.remove('hidden');
+                if (patCard) patCard.classList.add('hidden');
+                if (editDocFields) editDocFields.classList.remove('hidden');
+                if (editPatFields) editPatFields.classList.add('hidden');
+
+                if (pageHeader) pageHeader.textContent = "👨‍⚕️ Doctor Profile";
+                if (pageSub) pageSub.textContent = "Manage your medical credentials and clinical hospital information";
+                if (editTitle) editTitle.textContent = "Edit Doctor Profile Details";
+                if (labelName) labelName.textContent = "Doctor Full Name";
+
+                const docName = (profileData.name && !profileData.name.includes('(Patient)')) ? profileData.name : 'Dr. Sarah Smith';
+                document.getElementById('doctor-profile-name').textContent = docName;
+                document.getElementById('doctor-profile-name-field').textContent = docName;
+                document.getElementById('doctor-profile-phone').textContent = profileData.phone || "+91 98765 43210";
+                document.getElementById('doctor-profile-specialty').textContent = profileData.specialty || "Maxillofacial Surgeon & Implant Specialist";
+                document.getElementById('doctor-profile-specialty-badge').textContent = profileData.specialty || "Maxillofacial Surgeon & Implant Specialist";
+                document.getElementById('doctor-profile-hospital-name').textContent = profileData.clinic_name || "City Dental & Maxillofacial Hospital";
+                document.getElementById('doctor-profile-hospital-address').textContent = profileData.hospital_address || "104 Medical Enclave, Healthcare City, Chennai, 600077";
+                document.getElementById('doctor-profile-email').textContent = profileData.email;
+                document.getElementById('doctor-profile-license').textContent = profileData.license_number || "REG-8849201";
+                document.getElementById('doctor-profile-joined').textContent = profileData.joined;
+
+                if (avatarIcon) avatarIcon.textContent = "👨‍⚕️";
+
+                // Pre-fill Doctor Edit fields
+                document.getElementById('edit-profile-name').value = docName;
+                document.getElementById('edit-profile-phone').value = profileData.phone || '+91 98765 43210';
+                document.getElementById('edit-profile-specialty').value = profileData.specialty || 'Maxillofacial Surgeon & Implant Specialist';
+                document.getElementById('edit-profile-clinic').value = profileData.clinic_name || 'City Dental & Maxillofacial Hospital';
+                document.getElementById('edit-profile-hospital-address').value = profileData.hospital_address || '104 Medical Enclave, Healthcare City, Chennai';
+                document.getElementById('edit-profile-license').value = profileData.license_number || 'REG-8849201';
+                document.getElementById('edit-profile-email').value = profileData.email || '';
+            } else {
+                // PATIENT PROFILE ONLY - ALL 8 ATTRIBUTES
+                if (docCard) docCard.classList.add('hidden');
+                if (patCard) patCard.classList.remove('hidden');
+                if (editDocFields) editDocFields.classList.add('hidden');
+                if (editPatFields) editPatFields.classList.remove('hidden');
+
+                if (pageHeader) pageHeader.textContent = "👤 Patient Profile";
+                if (pageSub) pageSub.textContent = "View and manage your personal medical, contact and guardian details";
+                if (editTitle) editTitle.textContent = "Edit Patient Profile Details";
+                if (labelName) labelName.textContent = "Patient Full Name";
+
+                const patName = (profileData.name && !profileData.name.includes('Dr.') && !profileData.name.includes('Doctor') && !profileData.name.includes('System Administrator')) ? profileData.name : 'John Doe';
+                document.getElementById('patient-profile-name').textContent = patName;
+                document.getElementById('patient-profile-name-field').textContent = patName;
+                document.getElementById('patient-profile-phone').textContent = profileData.phone || "+91 98123 45678";
+                document.getElementById('patient-profile-email').textContent = profileData.email;
+                document.getElementById('patient-profile-age').textContent = `${profileData.age || 48} Years`;
+                document.getElementById('patient-profile-gender').textContent = profileData.gender || 'Male';
+                document.getElementById('patient-profile-address').textContent = profileData.address || "Flat 4B, Green Park Residences, Bangalore";
+                document.getElementById('patient-profile-guardian-name').textContent = profileData.guardian_name || "Robert Doe (Father)";
+                document.getElementById('patient-profile-guardian-phone').textContent = profileData.guardian_phone || "+91 98450 11223";
+                document.getElementById('patient-profile-joined').textContent = profileData.joined;
+                document.getElementById('patient-profile-id-badge').textContent = `Patient ID: ${profileData.patient_id || 'PID-2026-889'}`;
+
+                if (avatarIcon) avatarIcon.textContent = "👤";
+
+                // Pre-fill Patient Edit fields
+                document.getElementById('edit-profile-name').value = patName;
+                document.getElementById('edit-profile-phone').value = profileData.phone || '+91 98123 45678';
+                document.getElementById('edit-profile-address').value = profileData.address || '';
+                document.getElementById('edit-profile-age').value = profileData.age || 45;
+                document.getElementById('edit-profile-gender').value = profileData.gender || 'Male';
+                document.getElementById('edit-profile-guardian-name').value = profileData.guardian_name || 'Robert Doe (Father)';
+                document.getElementById('edit-profile-guardian-phone').value = profileData.guardian_phone || '+91 98450 11223';
+                document.getElementById('edit-profile-email').value = profileData.email || '';
+            }
+
+            if (profileData.avatar_url) {
+                avatarImg.src = profileData.avatar_url;
+                avatarImg.classList.remove('hidden');
+                avatarIcon.classList.add('hidden');
+            } else {
+                avatarImg.classList.add('hidden');
+                avatarIcon.classList.remove('hidden');
+            }
         }
     } catch (error) {
         console.error("Error fetching profile:", error);
