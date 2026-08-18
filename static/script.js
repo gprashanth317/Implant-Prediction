@@ -1306,7 +1306,7 @@ async function fetchProfile() {
                 if (editPatFields) editPatFields.classList.remove('hidden');
 
                 if (pageHeader) pageHeader.textContent = "👤 Patient Profile";
-                if (pageSub) pageSub.textContent = "View and manage your personal medical, contact and guardian details";
+                if (pageSub) pageSub.textContent = "View and manage your personal medical, contact and family details";
                 if (editTitle) editTitle.textContent = "Edit Patient Profile Details";
                 if (labelName) labelName.textContent = "Patient Full Name";
 
