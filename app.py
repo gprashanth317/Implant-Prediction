@@ -183,17 +183,24 @@ def login():
         db.session.commit()
 
     if user and user.password == password:
+        role_mode = data.get('role', '').strip().lower()
+        if role_mode in ['doctor', 'patient']:
+            user.role = role_mode
+            session['user_role'] = role_mode
+            db.session.commit()
+        else:
+            session['user_role'] = user.role or 'doctor'
+
         session['user_id'] = user.id
         session['user_name'] = user.name
         session['user_email'] = user.email
         session['user_username'] = user.username or user.email
-        session['user_role'] = user.role or 'doctor'
         session['joined_date'] = user.joined_date
 
         return jsonify({
             "status": "success", 
             "message": "Authenticated successfully.",
-            "role": user.role or "doctor",
+            "role": session['user_role'],
             "name": user.name
         })
 
@@ -242,11 +249,17 @@ def google_auth():
 
     # 2. REGISTERED USER: Email already has a created password -> NEVER ask again! Direct Login!
     if user.is_registered and user.password and user.password.strip() != '':
+        if role in ['doctor', 'patient']:
+            user.role = role
+            session['user_role'] = role
+            db.session.commit()
+        else:
+            session['user_role'] = user.role or 'doctor'
+
         session['user_id'] = user.id
         session['user_name'] = user.name
         session['user_email'] = user.email
         session['user_username'] = user.username or user.email
-        session['user_role'] = user.role or 'doctor'
         session['joined_date'] = user.joined_date
 
         # Sync User profile to Firebase Firestore Cloud Database
@@ -256,7 +269,7 @@ def google_auth():
                     "email": user.email,
                     "name": user.name,
                     "username": user.username,
-                    "role": user.role or "doctor",
+                    "role": session['user_role'],
                     "is_registered": True,
                     "specialty": user.specialty,
                     "clinic_name": user.clinic_name,
@@ -271,7 +284,7 @@ def google_auth():
         return jsonify({
             "status": "success", 
             "message": "Google authentication verified successfully.",
-            "role": user.role or "doctor",
+            "role": session['user_role'],
             "name": user.name
         })
 
@@ -523,20 +536,20 @@ def logout():
 @login_required
 def get_profile():
     user = db.session.get(User, session.get('user_id'))
+    current_role = session.get('user_role') or (user.role if user else 'doctor')
     if not user:
-        role = session.get('user_role', 'doctor')
         return jsonify({
             "status": "success",
-            "role": role,
-            "name": session.get('user_name', 'Dr. Sarah Smith' if role == 'doctor' else 'John Doe'),
-            "email": session.get('user_email', 'doctor@clinic.com' if role == 'doctor' else 'patient@clinic.com'),
-            "username": session.get('user_username', 'doctor' if role == 'doctor' else 'patient'),
+            "role": current_role,
+            "name": session.get('user_name', 'Dr. Sarah Smith' if current_role == 'doctor' else 'John Doe'),
+            "email": session.get('user_email', 'doctor@clinic.com' if current_role == 'doctor' else 'patient@clinic.com'),
+            "username": session.get('user_username', 'doctor' if current_role == 'doctor' else 'patient'),
             "joined": session.get('joined_date', '2026-01-01'),
             "specialty": "Maxillofacial Surgeon & Implant Specialist",
             "clinic_name": "City Dental & Maxillofacial Hospital",
             "hospital_address": "104 Medical Enclave, Healthcare City, Chennai, 600077",
             "license_number": "REG-8849201",
-            "phone": "+91 98765 43210" if role == 'doctor' else "+91 98123 45678",
+            "phone": "+91 98765 43210" if current_role == 'doctor' else "+91 98123 45678",
             "address": "Flat 4B, Green Park Residences, Bangalore",
             "age": 48,
             "gender": "Male",
@@ -548,20 +561,25 @@ def get_profile():
 
     avatar_url = f"/static/uploads/{user.avatar_filename}" if user.avatar_filename and user.avatar_filename != 'default_avatar.png' else None
 
+    # Patient default name fallback if user logged in as patient
+    patient_name = user.name
+    if current_role == 'patient' and ('Dr.' in user.name or 'Doctor' in user.name or 'Administrator' in user.name or 'admin' in user.name.lower()):
+        patient_name = 'John Doe (Patient)'
+
     return jsonify({
         "status": "success",
-        "role": user.role or "doctor",
-        "name": user.name,
+        "role": current_role,
+        "name": patient_name if current_role == 'patient' else user.name,
         "email": user.email,
         "username": user.username or user.email,
         "joined": user.joined_date,
-        "phone": user.phone or ("+91 98765 43210" if user.role == 'doctor' else "+91 98123 45678"),
+        "phone": user.phone or ("+91 98765 43210" if current_role == 'doctor' else "+91 98123 45678"),
         "specialty": user.specialty or "Maxillofacial Surgeon & Implant Specialist",
         "clinic_name": user.clinic_name or "City Dental & Maxillofacial Hospital",
         "hospital_address": user.hospital_address or "104 Medical Enclave, Healthcare City, Chennai, 600077",
         "license_number": user.license_number or "REG-8849201",
-        "address": user.address or "123 Main Street, Healthcare District",
-        "age": user.age or 45,
+        "address": user.address or "Flat 4B, Green Park Residences, Bangalore",
+        "age": user.age or 48,
         "gender": user.gender or "Male",
         "patient_id": user.patient_id or f"PID-2026-{user.id:03d}",
         "guardian_name": user.guardian_name or "Robert Doe (Father)",
