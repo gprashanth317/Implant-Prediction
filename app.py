@@ -657,6 +657,31 @@ def update_profile():
 
         db.session.commit()
 
+        # Sync updated User profile to Firebase Firestore Cloud Database
+        if firebase_db:
+            try:
+                firebase_db.collection('users').document(str(user.id)).set({
+                    "email": user.email,
+                    "name": user.name,
+                    "username": user.username,
+                    "role": user.role or "doctor",
+                    "phone": user.phone,
+                    "specialty": user.specialty,
+                    "clinic_name": user.clinic_name,
+                    "hospital_address": user.hospital_address,
+                    "license_number": user.license_number,
+                    "address": user.address,
+                    "age": user.age,
+                    "gender": user.gender,
+                    "patient_id": user.patient_id,
+                    "guardian_name": user.guardian_name,
+                    "guardian_phone": user.guardian_phone,
+                    "updated_at": firestore.SERVER_TIMESTAMP
+                }, merge=True)
+                print(f"✅ User profile synced to Firebase Firestore for user ID: {user.id}")
+            except Exception as fe:
+                print(f"Firebase Firestore sync warning: {fe}")
+
         session['user_name'] = new_name
         session['user_email'] = new_email
 

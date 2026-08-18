@@ -1613,6 +1613,26 @@ document.getElementById('profile-edit-form').addEventListener('submit', async fu
             msgDiv.textContent = '✅ ' + result.message;
             msgDiv.classList.remove('hidden');
 
+            // Sync to Firebase Firestore Client SDK
+            if (typeof firebaseDB !== 'undefined' && firebaseDB && result.email) {
+                firebaseDB.collection('users').doc(result.email).set({
+                    name: result.name,
+                    email: result.email,
+                    phone: result.phone,
+                    role: result.role,
+                    specialty: result.specialty,
+                    clinic_name: result.clinic_name,
+                    hospital_address: result.hospital_address,
+                    license_number: result.license_number,
+                    address: result.address,
+                    age: result.age,
+                    gender: result.gender,
+                    guardian_name: result.guardian_name,
+                    guardian_phone: result.guardian_phone,
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true }).catch(err => console.warn("Firestore profile sync warning:", err));
+            }
+
             fetchProfile();
 
             setTimeout(() => {
