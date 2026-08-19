@@ -945,15 +945,16 @@ async function downloadPatientPDF(item) {
 
     const pdfContainer = document.createElement('div');
     pdfContainer.id = 'temp-pdf-render-box';
-    pdfContainer.style.position = 'fixed';
-    pdfContainer.style.left = '-9999px';
+    pdfContainer.style.position = 'absolute';
     pdfContainer.style.top = '0';
+    pdfContainer.style.left = '0';
     pdfContainer.style.width = '780px';
     pdfContainer.style.padding = '35px';
     pdfContainer.style.fontFamily = 'Arial, Helvetica, sans-serif';
-    pdfContainer.style.color = '#333';
-    pdfContainer.style.background = '#ffffff';
-    pdfContainer.style.zIndex = '-99999';
+    pdfContainer.style.color = '#1e2d3c';
+    pdfContainer.style.backgroundColor = '#ffffff';
+    pdfContainer.style.zIndex = '-999999';
+    pdfContainer.style.pointerEvents = 'none';
 
     pdfContainer.innerHTML = `
         ${headerHtml}
@@ -997,10 +998,18 @@ async function downloadPatientPDF(item) {
     const safeName = (item.patient_name || 'Patient').replace(/\s+/g, '_');
     const safeId = item.patient_id || 'Record';
     const opt = {
-        margin:       10,
+        margin:       [10, 10, 10, 10],
         filename:     `ImplantAI_${isDoctor ? 'Doctor' : 'SelfDownload'}_Report_${safeName}_${safeId}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        html2canvas:  { 
+            scale: 2, 
+            useCORS: true, 
+            logging: false,
+            scrollY: 0,
+            scrollX: 0,
+            windowWidth: 800,
+            backgroundColor: '#ffffff'
+        },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
