@@ -844,192 +844,47 @@ async function downloadPatientPDF(item) {
         return;
     }
 
-    await ensureProfileLoaded();
-
-    const isDoctor = (currentProfileData && currentProfileData.role === 'doctor') || (currentLoginRole === 'doctor');
-    
-    // Doctor Details (Used strictly when user is a Doctor)
-    const docName = (currentProfileData && currentProfileData.name && !currentProfileData.name.includes('(Patient)')) 
-                    ? currentProfileData.name 
-                    : 'Dr. Sarah Smith';
-    const docPhone = (currentProfileData && currentProfileData.phone) || '+91 98765 43210';
-    const docEmail = (currentProfileData && currentProfileData.email) || 'doctor@clinicalportal.com';
-    const clinicName = (currentProfileData && currentProfileData.clinic_name) || 'City Dental & Maxillofacial Hospital';
-    const hospAddr = (currentProfileData && currentProfileData.hospital_address) || 'Saveetha Nagar, Poonamallee High Rd, Chennai';
-    const licenseNo = (currentProfileData && currentProfileData.license_number) || 'MCI/DCI-784920';
-
-    const riskLabel = item.score >= 90 ? 'Low Risk (Excellent Prognosis)' : (item.score >= 80 ? 'Medium Risk (Moderate Prognosis)' : 'High Risk Profile');
-    const riskColor = item.score >= 90 ? '#27ae60' : (item.score >= 80 ? '#d35400' : '#c62828');
-
-    // Build Role-Specific Header & Demographic Blocks
-    let headerHtml = '';
-    let demographicsHtml = '';
-
-    if (isDoctor) {
-        // 1. DOCTOR LOGIN: Prominently mention Doctor Name, Phone Number, and Mail ID
-        headerHtml = `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #1e2d3c; padding-bottom: 15px; margin-bottom: 25px;">
-                <div>
-                    <h1 style="margin: 0; color: #1e2d3c; font-size: 1.65rem;">ImplantAI Clinical Evaluation Report</h1>
-                    <p style="margin: 4px 0 0 0; color: #7f8c8d; font-size: 0.92rem;">Maxillofacial Prosthetics & Dental Implant Prognosis</p>
-                    <p style="margin: 4px 0 0 0; color: #2c3e50; font-size: 0.85rem;"><strong>🏥 Clinic / Hospital:</strong> ${clinicName} (${hospAddr})</p>
-                    <p style="margin: 2px 0 0 0; color: #64748b; font-size: 0.8rem;"><strong>📜 Medical License:</strong> ${licenseNo}</p>
-                </div>
-                <div style="text-align: right; font-size: 0.88rem; color: #333; line-height: 1.45; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; min-width: 240px;">
-                    <p style="margin: 0 0 4px 0; color: #1e2d3c; font-weight: bold; font-size: 0.95rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px;">👨‍⚕️ Attending Doctor Details</p>
-                    <p style="margin: 3px 0;"><strong>Doctor Name:</strong> ${docName}</p>
-                    <p style="margin: 3px 0;"><strong>Phone Number:</strong> ${docPhone}</p>
-                    <p style="margin: 3px 0;"><strong>Mail ID:</strong> ${docEmail}</p>
-                    <p style="margin: 3px 0; color: #64748b; font-size: 0.8rem;"><strong>Report Date:</strong> ${new Date().toLocaleDateString()}</p>
-                </div>
-            </div>
-        `;
-
-        demographicsHtml = `
-            <div style="background: #f8f9fa; padding: 15px 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
-                <h3 style="margin-top:0; color: #1e2d3c; font-size: 1.05rem; border-bottom: 1px solid #ccc; padding-bottom: 6px;">👤 Patient & Clinical Demographics</h3>
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
-                    <tr>
-                        <td style="padding: 5px 0;"><strong>Patient Name:</strong> ${item.patient_name}</td>
-                        <td style="padding: 5px 0;"><strong>Attending Doctor:</strong> ${docName}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 5px 0;"><strong>Patient ID:</strong> ${item.patient_id || 'N/A'}</td>
-                        <td style="padding: 5px 0;"><strong>Doctor Contact:</strong> ${docPhone} | ${docEmail}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 5px 0;"><strong>Age / Gender:</strong> ${item.age} years / ${item.gender}</td>
-                        <td style="padding: 5px 0;"><strong>Evaluation Date:</strong> ${item.date}</td>
-                    </tr>
-                </table>
-            </div>
-        `;
-    } else {
-        // 2. PATIENT LOGIN: Explicitly mention "Self Download"
-        headerHtml = `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #27ae60; padding-bottom: 15px; margin-bottom: 25px;">
-                <div>
-                    <h1 style="margin: 0; color: #1e2d3c; font-size: 1.65rem;">ImplantAI Prognosis Report</h1>
-                    <p style="margin: 4px 0 0 0; color: #7f8c8d; font-size: 0.92rem;">Personal Dental Implant Survival Assessment</p>
-                    <p style="margin: 4px 0 0 0; color: #27ae60; font-weight: bold; font-size: 0.9rem;">📥 Self Download</p>
-                </div>
-                <div style="text-align: right; font-size: 0.88rem; color: #333; line-height: 1.45; background: #e8f5e9; padding: 12px 16px; border-radius: 8px; border: 1px solid #c8e6c9; min-width: 220px;">
-                    <p style="margin: 0 0 4px 0; color: #2e7d32; font-weight: bold; font-size: 0.95rem; border-bottom: 1px solid #a5d6a7; padding-bottom: 3px;">📥 Download Information</p>
-                    <p style="margin: 3px 0;"><strong>Mode:</strong> Self Download</p>
-                    <p style="margin: 3px 0;"><strong>Patient Name:</strong> ${item.patient_name}</p>
-                    <p style="margin: 3px 0; color: #555; font-size: 0.8rem;"><strong>Report Date:</strong> ${new Date().toLocaleDateString()}</p>
-                </div>
-            </div>
-        `;
-
-        demographicsHtml = `
-            <div style="background: #f8f9fa; padding: 15px 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
-                <h3 style="margin-top:0; color: #1e2d3c; font-size: 1.05rem; border-bottom: 1px solid #ccc; padding-bottom: 6px;">👤 Patient Information</h3>
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
-                    <tr>
-                        <td style="padding: 5px 0;"><strong>Patient Name:</strong> ${item.patient_name}</td>
-                        <td style="padding: 5px 0;"><strong>Report Type:</strong> <span style="background:#e8f5e9; color:#2e7d32; font-weight:bold; padding:2px 8px; border-radius:4px;">Self Download</span></td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 5px 0;"><strong>Patient ID:</strong> ${item.patient_id || 'N/A'}</td>
-                        <td style="padding: 5px 0;"><strong>Consultation:</strong> Self Download (Personal Health Record)</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 5px 0;"><strong>Age / Gender:</strong> ${item.age} years / ${item.gender}</td>
-                        <td style="padding: 5px 0;"><strong>Evaluation Date:</strong> ${item.date}</td>
-                    </tr>
-                </table>
-            </div>
-        `;
-    }
-
-    const pdfContainer = document.createElement('div');
-    pdfContainer.id = 'temp-pdf-render-box';
-    pdfContainer.style.position = 'absolute';
-    pdfContainer.style.top = '0';
-    pdfContainer.style.left = '0';
-    pdfContainer.style.width = '780px';
-    pdfContainer.style.padding = '35px';
-    pdfContainer.style.fontFamily = 'Arial, Helvetica, sans-serif';
-    pdfContainer.style.color = '#1e2d3c';
-    pdfContainer.style.backgroundColor = '#ffffff';
-    pdfContainer.style.zIndex = '-999999';
-    pdfContainer.style.pointerEvents = 'none';
-
-    pdfContainer.innerHTML = `
-        ${headerHtml}
-        ${demographicsHtml}
-
-        <div style="background: #1e2d3c; color: white; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 25px;">
-            <div style="font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9;">Calculated 10-Year Survival Probability</div>
-            <div style="font-size: 3.2rem; font-weight: bold; margin: 8px 0; color: #fff;">${item.score}%</div>
-            <div style="display: inline-block; padding: 6px 18px; border-radius: 20px; background: ${riskColor}; color: white; font-weight: bold; font-size: 0.95rem;">
-                Category: ${riskLabel}
-            </div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                <h4 style="margin-top:0; color: #1e2d3c; border-bottom: 1px solid #ddd; padding-bottom: 6px;">🩺 Systemic Risk Factors</h4>
-                <p style="margin: 6px 0; font-size: 0.9rem;"><strong>Smoking Status:</strong> ${item.smoking_status}</p>
-                <p style="margin: 6px 0; font-size: 0.9rem;"><strong>Diabetes Mellitus:</strong> ${item.diabetes === 'yes' ? 'Present (Yes)' : 'Absent (No)'}</p>
-                <p style="margin: 6px 0; font-size: 0.9rem;"><strong>History of Periodontitis:</strong> ${item.history_periodontitis === 'yes' ? 'Present (Yes)' : 'Absent (No)'}</p>
-                <p style="margin: 6px 0; font-size: 0.9rem;"><strong>Bruxism / Parafunction:</strong> ${item.bruxism === 'yes' ? 'Present (Yes)' : 'Absent (No)'}</p>
-                <p style="margin: 6px 0; font-size: 0.9rem;"><strong>Oral Hygiene Index:</strong> ${item.oral_hygiene}</p>
-            </div>
-
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                <h4 style="margin-top:0; color: #1e2d3c; border-bottom: 1px solid #ddd; padding-bottom: 6px;">🦴 Anatomical & Implant Specs</h4>
-                <p style="margin: 6px 0; font-size: 0.9rem;"><strong>Bone Quality:</strong> ${item.bone_quality}</p>
-                <p style="margin: 6px 0; font-size: 0.9rem;"><strong>Jaw Location:</strong> ${item.jaw_location}</p>
-                <p style="margin: 6px 0; font-size: 0.9rem;"><strong>Implant Length:</strong> ${item.implant_length_mm} mm</p>
-                <p style="margin: 6px 0; font-size: 0.9rem;"><strong>Implant Diameter:</strong> ${item.implant_diameter_mm} mm</p>
-                <p style="margin: 6px 0; font-size: 0.9rem;"><strong>Implant Surface:</strong> ${item.implant_surface}</p>
-            </div>
-        </div>
-
-        <div style="border-top: 1px solid #ddd; padding-top: 15px; text-align: center; font-size: 0.8rem; color: #7f8c8d;">
-            <p>${isDoctor ? 'ImplantAI Decision Support Platform — Generated for Clinical Consultation Only.' : 'ImplantAI Patient Portal — Generated as Self Download. Please consult your dental specialist for diagnosis.'}</p>
-        </div>
-    `;
-
-    document.body.appendChild(pdfContainer);
-
-    const safeName = (item.patient_name || 'Patient').replace(/\s+/g, '_');
-    const safeId = item.patient_id || 'Record';
-    const opt = {
-        margin:       [10, 10, 10, 10],
-        filename:     `ImplantAI_${isDoctor ? 'Doctor' : 'SelfDownload'}_Report_${safeName}_${safeId}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { 
-            scale: 2, 
-            useCORS: true, 
-            logging: false,
-            scrollY: 0,
-            scrollX: 0,
-            windowWidth: 800,
-            backgroundColor: '#ffffff'
-        },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    if (typeof html2pdf !== 'undefined') {
-        html2pdf().set(opt).from(pdfContainer).save().then(() => {
-            if (pdfContainer.parentNode) {
-                pdfContainer.parentNode.removeChild(pdfContainer);
-            }
-        }).catch(err => {
-            console.error("html2pdf generation error:", err);
-            if (pdfContainer.parentNode) {
-                pdfContainer.parentNode.removeChild(pdfContainer);
-            }
-            alert("Error downloading PDF: " + err.message);
+    try {
+        const response = await fetch('/generate_pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item)
         });
-    } else {
-        alert("PDF generator library is loading. Please try again in 2 seconds.");
-        if (pdfContainer.parentNode) {
-            pdfContainer.parentNode.removeChild(pdfContainer);
+
+        if (response.status === 401) {
+            alert("Session expired. Please log in again.");
+            logout();
+            return;
         }
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            alert("Error generating PDF: " + (errData.message || response.statusText));
+            return;
+        }
+
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = downloadUrl;
+        
+        const isDoc = (currentProfileData && currentProfileData.role === 'doctor') || (currentLoginRole === 'doctor');
+        const safeName = (item.patient_name || 'Patient').replace(/\s+/g, '_');
+        const safeId = item.patient_id || 'Record';
+        a.download = `ImplantAI_${isDoc ? 'Doctor' : 'SelfDownload'}_Report_${safeName}_${safeId}.pdf`;
+
+        document.body.appendChild(a);
+        a.click();
+        
+        setTimeout(() => {
+            window.URL.revokeObjectURL(downloadUrl);
+            if (a.parentNode) a.parentNode.removeChild(a);
+        }, 1500);
+
+    } catch (error) {
+        console.error("PDF Download error:", error);
+        alert("Error downloading PDF: " + error.message);
     }
 }
 

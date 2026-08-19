@@ -1,14 +1,22 @@
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, send_file
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
 from datetime import datetime
 import os
+import io
 import joblib
 import numpy as np
 import warnings
 from functools import wraps
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+
+# ReportLab PDF Generation Imports
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 
 # --- 1. ENVIRONMENT & APPLICATION CONFIGURATION ---
 load_dotenv("API.env")
@@ -968,6 +976,298 @@ def delete_history(record_id):
         return jsonify({'status': 'error', 'message': 'Record not found.'}), 404
     except Exception as e:
         return jsonify({'status': 'error', 'message': 'Failed to delete record.'}), 400
+
+# --- 10. SERVER-SIDE CLINICAL PDF REPORT GENERATOR ---
+def generate_clinical_pdf(data, user_role, user_details):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36
+    )
+    styles = getSampleStyleSheet()
+    elements = []
+
+    is_doctor = (user_role == 'doctor')
+    try:
+        score = float(data.get('score', 50.0))
+    except (ValueError, TypeError):
+        score = 50.0
+
+    patient_name = data.get('patient_name', 'Unknown Patient')
+    patient_id = data.get('patient_id', 'PID-UNKNOWN')
+    eval_date = data.get('date', datetime.now().strftime("%Y-%m-%d %H:%M"))
+
+    # Color definitions
+    primary_color = colors.HexColor('#1e2d3c')
+    green_color = colors.HexColor('#27ae60')
+    orange_color = colors.HexColor('#e67e22')
+    red_color = colors.HexColor('#c0392b')
+    gray_bg = colors.HexColor('#f8f9fa')
+    border_color = colors.HexColor('#cbd5e1')
+
+    if score >= 90:
+        risk_label = 'Low Risk (Excellent Prognosis)'
+        risk_color = green_color
+    elif score >= 80:
+        risk_label = 'Medium Risk (Moderate Prognosis)'
+        risk_color = orange_color
+    else:
+        risk_label = 'High Risk Profile'
+        risk_color = red_color
+
+    # Custom Typography Styles
+    title_style = ParagraphStyle(
+        'MainTitle', parent=styles['Normal'],
+        fontName='Helvetica-Bold', fontSize=16,
+        textColor=primary_color, leading=19
+    )
+    subtitle_style = ParagraphStyle(
+        'SubTitle', parent=styles['Normal'],
+        fontName='Helvetica', fontSize=8.5,
+        textColor=colors.HexColor('#64748b'), leading=11
+    )
+    hosp_style = ParagraphStyle(
+        'HospStyle', parent=styles['Normal'],
+        fontName='Helvetica-Bold', fontSize=8.5,
+        textColor=colors.HexColor('#2c3e50'), leading=11
+    )
+    box_header_style = ParagraphStyle(
+        'BoxHeader', parent=styles['Normal'],
+        fontName='Helvetica-Bold', fontSize=9.5,
+        textColor=primary_color if is_doctor else green_color, leading=12
+    )
+    box_body_style = ParagraphStyle(
+        'BoxBody', parent=styles['Normal'],
+        fontName='Helvetica', fontSize=8.5,
+        textColor=colors.HexColor('#334155'), leading=11
+    )
+    cell_bold = ParagraphStyle(
+        'CellBold', parent=styles['Normal'],
+        fontName='Helvetica-Bold', fontSize=8.5,
+        textColor=primary_color, leading=11
+    )
+    cell_normal = ParagraphStyle(
+        'CellNormal', parent=styles['Normal'],
+        fontName='Helvetica', fontSize=8.5,
+        textColor=colors.HexColor('#334155'), leading=11
+    )
+
+    # 1. HEADER SECTION
+    if is_doctor:
+        doc_name = user_details.get('name', 'Dr. Sarah Smith')
+        doc_phone = user_details.get('phone', '+91 98765 43210')
+        doc_email = user_details.get('email', 'doctor@clinicalportal.com')
+        clinic_name = user_details.get('clinic_name', 'Saveetha Dental & Maxillofacial Hospital')
+        hosp_addr = user_details.get('hospital_address', 'Saveetha Nagar, Chennai')
+        license_no = user_details.get('license_number', 'MCI/DCI-784920')
+
+        left_header = [
+            Paragraph('ImplantAI Clinical Evaluation Report', title_style),
+            Spacer(1, 3),
+            Paragraph('Maxillofacial Prosthetics & Dental Implant Prognosis', subtitle_style),
+            Spacer(1, 3),
+            Paragraph(f'<b>Clinic/Hospital:</b> {clinic_name}', hosp_style),
+            Paragraph(f'<b>Address:</b> {hosp_addr}', subtitle_style),
+            Paragraph(f'<b>License No:</b> {license_no}', subtitle_style),
+        ]
+        right_header = [
+            Paragraph('<b>Attending Doctor Details</b>', box_header_style),
+            Spacer(1, 3),
+            Paragraph(f'<b>Doctor Name:</b> {doc_name}', box_body_style),
+            Paragraph(f'<b>Phone Number:</b> {doc_phone}', box_body_style),
+            Paragraph(f'<b>Mail ID:</b> {doc_email}', box_body_style),
+            Paragraph(f'<b>Report Date:</b> {eval_date}', box_body_style),
+        ]
+    else:
+        left_header = [
+            Paragraph('ImplantAI Prognosis Report', title_style),
+            Spacer(1, 3),
+            Paragraph('Personal Dental Implant Survival Assessment', subtitle_style),
+            Spacer(1, 4),
+            Paragraph('<b>Mode:</b> <font color="#27ae60"><b>Self Download</b></font>', hosp_style),
+            Paragraph('<b>Type:</b> Personal Health Record', subtitle_style),
+        ]
+        right_header = [
+            Paragraph('<b>Download Information</b>', box_header_style),
+            Spacer(1, 3),
+            Paragraph('<b>Mode:</b> Self Download', box_body_style),
+            Paragraph(f'<b>Patient Name:</b> {patient_name}', box_body_style),
+            Paragraph(f'<b>Report Date:</b> {eval_date}', box_body_style),
+        ]
+
+    header_table = Table([[left_header, right_header]], colWidths=[310, 210])
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('PADDING', (0,0), (-1,-1), 0),
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 8))
+    elements.append(HRFlowable(width='100%', thickness=2, color=primary_color if is_doctor else green_color, spaceAfter=12))
+
+    # 2. PATIENT DEMOGRAPHICS TABLE
+    if is_doctor:
+        demo_data = [
+            [Paragraph('<b>Patient Name:</b>', cell_bold), Paragraph(patient_name, cell_normal),
+             Paragraph('<b>Attending Doctor:</b>', cell_bold), Paragraph(doc_name, cell_normal)],
+            [Paragraph('<b>Patient ID:</b>', cell_bold), Paragraph(str(patient_id), cell_normal),
+             Paragraph('<b>Doctor Contact:</b>', cell_bold), Paragraph(f'{doc_phone} | {doc_email}', cell_normal)],
+            [Paragraph('<b>Age / Gender:</b>', cell_bold), Paragraph(f"{data.get('age', 'N/A')} yrs / {data.get('gender', 'N/A')}", cell_normal),
+             Paragraph('<b>Evaluation Date:</b>', cell_bold), Paragraph(str(eval_date), cell_normal)]
+        ]
+    else:
+        demo_data = [
+            [Paragraph('<b>Patient Name:</b>', cell_bold), Paragraph(patient_name, cell_normal),
+             Paragraph('<b>Report Type:</b>', cell_bold), Paragraph('<font color="#27ae60"><b>Self Download</b></font>', cell_normal)],
+            [Paragraph('<b>Patient ID:</b>', cell_bold), Paragraph(str(patient_id), cell_normal),
+             Paragraph('<b>Consultation:</b>', cell_bold), Paragraph('Self Download / Personal Assessment', cell_normal)],
+            [Paragraph('<b>Age / Gender:</b>', cell_bold), Paragraph(f"{data.get('age', 'N/A')} yrs / {data.get('gender', 'N/A')}", cell_normal),
+             Paragraph('<b>Evaluation Date:</b>', cell_bold), Paragraph(str(eval_date), cell_normal)]
+        ]
+
+    demo_table = Table(demo_data, colWidths=[100, 160, 100, 160])
+    demo_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), gray_bg),
+        ('BOX', (0,0), (-1,-1), 1, border_color),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, border_color),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+    ]))
+    elements.append(demo_table)
+    elements.append(Spacer(1, 12))
+
+    # 3. 10-YEAR SURVIVAL PROGNOSIS SCORE BANNER
+    score_label_style = ParagraphStyle(
+        'ScoreLabel', parent=styles['Normal'],
+        fontName='Helvetica-Bold', fontSize=9,
+        textColor=colors.white, alignment=TA_CENTER, leading=11
+    )
+    score_num_style = ParagraphStyle(
+        'ScoreNum', parent=styles['Normal'],
+        fontName='Helvetica-Bold', fontSize=26,
+        textColor=colors.white, alignment=TA_CENTER, leading=30
+    )
+    score_badge_style = ParagraphStyle(
+        'ScoreBadge', parent=styles['Normal'],
+        fontName='Helvetica-Bold', fontSize=9.5,
+        textColor=colors.white, alignment=TA_CENTER, leading=12
+    )
+
+    score_box_content = [
+        [Paragraph('CALCULATED 10-YEAR IMPLANT SURVIVAL PROBABILITY', score_label_style)],
+        [Paragraph(f'{score}%', score_num_style)],
+        [Paragraph(f'Prognosis Category: {risk_label}', score_badge_style)]
+    ]
+    score_table = Table(score_box_content, colWidths=[520])
+    score_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), primary_color),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('BACKGROUND', (0,2), (0,2), risk_color),
+    ]))
+    elements.append(score_table)
+    elements.append(Spacer(1, 12))
+
+    # 4. SYSTEMIC RISK & ANATOMICAL PARAMETERS TABLES
+    section_heading_style = ParagraphStyle(
+        'SecHead', parent=styles['Normal'],
+        fontName='Helvetica-Bold', fontSize=10,
+        textColor=primary_color, leading=13
+    )
+
+    col1_content = [
+        Paragraph('<b>Systemic Risk Factors</b>', section_heading_style),
+        Spacer(1, 3),
+        Table([
+            [Paragraph('<b>Smoking Status:</b>', cell_bold), Paragraph(str(data.get('smoking_status', 'Non-smoker')), cell_normal)],
+            [Paragraph('<b>Diabetes:</b>', cell_bold), Paragraph('Present (Yes)' if str(data.get('diabetes')).lower()=='yes' else 'Absent (No)', cell_normal)],
+            [Paragraph('<b>Periodontitis:</b>', cell_bold), Paragraph('Present (Yes)' if str(data.get('history_periodontitis')).lower()=='yes' else 'Absent (No)', cell_normal)],
+            [Paragraph('<b>Bruxism:</b>', cell_bold), Paragraph('Present (Yes)' if str(data.get('bruxism')).lower()=='yes' else 'Absent (No)', cell_normal)],
+            [Paragraph('<b>Oral Hygiene:</b>', cell_bold), Paragraph(str(data.get('oral_hygiene', 'Good')), cell_normal)],
+        ], colWidths=[95, 145], style=[
+            ('TOPPADDING', (0,0), (-1,-1), 2.5),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2.5),
+            ('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
+        ])
+    ]
+
+    col2_content = [
+        Paragraph('<b>Anatomical & Implant Specs</b>', section_heading_style),
+        Spacer(1, 3),
+        Table([
+            [Paragraph('<b>Bone Quality:</b>', cell_bold), Paragraph(str(data.get('bone_quality', 'Type 2')), cell_normal)],
+            [Paragraph('<b>Jaw Location:</b>', cell_bold), Paragraph(str(data.get('jaw_location', 'Mandible')), cell_normal)],
+            [Paragraph('<b>Implant Length:</b>', cell_bold), Paragraph(f"{data.get('implant_length_mm', '10.0')} mm", cell_normal)],
+            [Paragraph('<b>Implant Diameter:</b>', cell_bold), Paragraph(f"{data.get('implant_diameter_mm', '4.0')} mm", cell_normal)],
+            [Paragraph('<b>Implant Surface:</b>', cell_bold), Paragraph(str(data.get('implant_surface', 'Roughened')), cell_normal)],
+        ], colWidths=[100, 140], style=[
+            ('TOPPADDING', (0,0), (-1,-1), 2.5),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2.5),
+            ('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
+        ])
+    ]
+
+    param_table = Table([[col1_content, col2_content]], colWidths=[255, 255])
+    param_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), gray_bg),
+        ('BOX', (0,0), (-1,-1), 1, border_color),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('LEFTPADDING', (0,0), (-1,-1), 6),
+        ('RIGHTPADDING', (0,0), (-1,-1), 6),
+    ]))
+    elements.append(param_table)
+    elements.append(Spacer(1, 14))
+
+    # 5. FOOTER DISCLAIMER
+    footer_text = 'ImplantAI Decision Support Platform — Generated for Clinical Consultation Only.' if is_doctor else 'ImplantAI Patient Portal — Generated as Self Download. Please consult your dental specialist for diagnosis.'
+    footer_style = ParagraphStyle(
+        'Footer', parent=styles['Normal'],
+        fontName='Helvetica', fontSize=7.5,
+        textColor=colors.HexColor('#64748b'), alignment=TA_CENTER
+    )
+    elements.append(HRFlowable(width='100%', thickness=0.5, color=border_color, spaceAfter=6))
+    elements.append(Paragraph(footer_text, footer_style))
+
+    doc.build(elements)
+    return buffer.getvalue()
+
+@app.route('/generate_pdf', methods=['POST'])
+@login_required
+def generate_pdf():
+    try:
+        data = request.json or {}
+        user_id = session.get('user_id')
+        user = db.session.get(User, user_id)
+        user_role = session.get('user_role') or (user.role if user else 'doctor')
+
+        user_details = {
+            "name": user.name if user else "Dr. Sarah Smith",
+            "phone": user.phone if user else "+91 98765 43210",
+            "email": user.email if user else "doctor@clinicalportal.com",
+            "clinic_name": user.clinic_name if user else "Saveetha Dental & Maxillofacial Hospital",
+            "hospital_address": user.hospital_address if user else "Saveetha Nagar, Chennai",
+            "license_number": user.license_number if user else "MCI/DCI-784920"
+        }
+
+        pdf_bytes = generate_clinical_pdf(data, user_role, user_details)
+        patient_name = str(data.get('patient_name', 'Patient')).replace(' ', '_')
+        patient_id = str(data.get('patient_id', 'Record'))
+        prefix = 'Doctor' if user_role == 'doctor' else 'SelfDownload'
+        filename = f"ImplantAI_{prefix}_Report_{patient_name}_{patient_id}.pdf"
+
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
