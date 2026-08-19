@@ -1049,15 +1049,34 @@ async function renderAnalyticsDashboard() {
     }
 }
 
-// --- 5. INTERACTIVE DENTAL HOSPITALS MAP & DIRECTORY ---
+// --- 5. INTERACTIVE DENTAL HOSPITALS MAP & DIRECTORY (NATIONWIDE & NEAR-ME GPS) ---
 let hospitalsMap = null;
 let hospitalMarkers = [];
 let userLocationMarker = null;
+let userLiveCoords = null; // { lat, lng }
+
+const CITY_COORDINATES = {
+    'Chennai': [13.0827, 80.2707],
+    'Bengaluru': [12.9716, 77.5946],
+    'Hyderabad': [17.3850, 78.4867],
+    'Mumbai': [19.0760, 72.8777],
+    'Delhi': [28.6139, 77.2090],
+    'Kolkata': [22.5726, 88.3639],
+    'Pune': [18.5204, 73.8567],
+    'Ahmedabad': [23.0225, 72.5714],
+    'Kochi': [9.9312, 76.2673],
+    'Jaipur': [26.9124, 75.7873],
+    'Chandigarh': [30.7333, 76.7794],
+    'Lucknow': [26.8467, 80.9462],
+    'Coimbatore': [11.0168, 76.9558]
+};
 
 const DENTAL_HOSPITALS = [
+    // --- CHENNAI ---
     {
         id: 1,
         name: "Saveetha Dental & Maxillofacial Hospital",
+        city: "Chennai",
         phone: "+91 44 2680 1580",
         altPhone: "+91 98410 23456",
         address: "Saveetha Nagar, 162 Poonamallee High Rd, Chennai, Tamil Nadu 600077",
@@ -1071,6 +1090,7 @@ const DENTAL_HOSPITALS = [
     {
         id: 2,
         name: "Apollo Dental & Craniofacial Center",
+        city: "Chennai",
         phone: "+91 44 2829 0200",
         altPhone: "1800 102 0288",
         address: "Greams Road, Thousand Lights, Chennai, Tamil Nadu 600006",
@@ -1084,6 +1104,7 @@ const DENTAL_HOSPITALS = [
     {
         id: 3,
         name: "Tamil Nadu Govt Dental College & Hospital",
+        city: "Chennai",
         phone: "+91 44 2534 0343",
         altPhone: "+91 44 2534 0344",
         address: "Frazer Bridge Road, Opp. Fort Station, George Town, Chennai, Tamil Nadu 600003",
@@ -1097,6 +1118,7 @@ const DENTAL_HOSPITALS = [
     {
         id: 4,
         name: "Balaji Dental & Craniofacial Hospital",
+        city: "Chennai",
         phone: "+91 44 2432 6222",
         altPhone: "+91 98401 77777",
         address: "30 KB Dasan Road, Teynampet, Chennai, Tamil Nadu 600018",
@@ -1110,6 +1132,7 @@ const DENTAL_HOSPITALS = [
     {
         id: 5,
         name: "Sri Ramachandra Dental Hospital & Research Institute",
+        city: "Chennai",
         phone: "+91 44 2476 8027",
         altPhone: "+91 44 4592 8500",
         address: "No. 1 Ramachandra Nagar, Porur, Chennai, Tamil Nadu 600116",
@@ -1120,54 +1143,373 @@ const DENTAL_HOSPITALS = [
         rating: "4.8 ⭐⭐⭐⭐⭐",
         category: "implant"
     },
+
+    // --- BENGALURU (BANGALORE) ---
     {
         id: 6,
-        name: "Meenakshi Ammal Dental College & Hospital",
-        phone: "+91 44 2378 0177",
-        altPhone: "+91 44 2378 0178",
-        address: "Alapakkam Main Road, Maduravoyal, Chennai, Tamil Nadu 600095",
-        lat: 13.0569,
-        lng: 80.1612,
-        specialties: ["Basal Implantology", "Sinus Lift & Bone Augmentation", "Pediatric & Geriatric Care"],
-        emergency: "🚨 24x7 Casualty Available",
-        rating: "4.6 ⭐⭐⭐⭐",
+        name: "Government Dental College & Research Institute",
+        city: "Bengaluru",
+        phone: "+91 80 2670 5053",
+        altPhone: "+91 80 2670 1599",
+        address: "Victoria Hospital Complex, Fort Road, Bengaluru, Karnataka 560002",
+        lat: 12.9610,
+        lng: 77.5750,
+        specialties: ["Maxillofacial Trauma Surgery", "Prosthetic Implants", "Orthodontics"],
+        emergency: "🚨 24x7 Emergency Trauma Center",
+        rating: "4.8 ⭐⭐⭐⭐⭐",
         category: "emergency"
     },
     {
         id: 7,
-        name: "Ragas Dental College & Multi-Specialty Hospital",
-        phone: "+91 44 2453 0001",
-        altPhone: "+91 44 2453 0002",
-        address: "2/102 East Coast Road, Uthandi, Chennai, Tamil Nadu 600119",
-        lat: 12.8732,
-        lng: 80.2476,
-        specialties: ["Implant Prosthodontics", "Guided Flapless Surgery", "Cosmetic Dentofacial Surgery"],
-        emergency: "🚨 24x7 Dental Emergency Helpdesk",
-        rating: "4.7 ⭐⭐⭐⭐⭐",
+        name: "Manipal Hospital Dental & Maxillofacial Center",
+        city: "Bengaluru",
+        phone: "+91 80 2502 4444",
+        altPhone: "1800 102 5555",
+        address: "98 HAL Old Airport Road, Kodihalli, Bengaluru, Karnataka 560017",
+        lat: 12.9592,
+        lng: 77.6496,
+        specialties: ["Guided Dental Implantology", "Microvascular Flap Surgery", "Cosmetic Dentistry"],
+        emergency: "🚨 24x7 Maxillofacial Casualty",
+        rating: "4.9 ⭐⭐⭐⭐⭐",
         category: "implant"
     },
     {
         id: 8,
-        name: "Global Health City Dental & Implant Institute",
-        phone: "+91 44 4477 7000",
-        altPhone: "+91 99400 12345",
-        address: "439 Cheran Nagar, Perumbakkam, Chennai, Tamil Nadu 600100",
-        lat: 12.9038,
-        lng: 80.1915,
-        specialties: ["Computer-Guided All-on-4 Implants", "Digital Smile Design", "Maxillofacial Trauma"],
-        emergency: "🚨 24x7 Emergency Trauma Unit",
+        name: "The Oxford Dental College & Hospital",
+        city: "Bengaluru",
+        phone: "+91 80 6175 4603",
+        altPhone: "+91 80 3021 9826",
+        address: "10th Milestone, Bommanahalli, Hosur Road, Bengaluru, Karnataka 560068",
+        lat: 12.8988,
+        lng: 77.6253,
+        specialties: ["Basal Implantology", "Sinus Elevation", "Implant Prosthodontics"],
+        emergency: "🚨 24x7 Emergency Dental Service",
+        rating: "4.7 ⭐⭐⭐⭐⭐",
+        category: "implant"
+    },
+    {
+        id: 9,
+        name: "M.S. Ramaiah Dental College & Hospital",
+        city: "Bengaluru",
+        phone: "+91 80 2360 5845",
+        altPhone: "+91 80 2360 7979",
+        address: "MSR Nagar, MSRIT Post, Bengaluru, Karnataka 560054",
+        lat: 13.0315,
+        lng: 77.5647,
+        specialties: ["Oral & Craniofacial Surgery", "Immediate Load Implants", "Periodontics"],
+        emergency: "🚨 24x7 Emergency Casualty",
         rating: "4.8 ⭐⭐⭐⭐⭐",
         category: "maxillofacial"
+    },
+
+    // --- HYDERABAD ---
+    {
+        id: 10,
+        name: "Government Dental College & Hospital",
+        city: "Hyderabad",
+        phone: "+91 40 2460 0147",
+        altPhone: "+91 40 2460 0148",
+        address: "Afzalgunj, High Court Road, Hyderabad, Telangana 500012",
+        lat: 17.3688,
+        lng: 78.4735,
+        specialties: ["Maxillofacial Reconstruction", "Dental Implants", "Oral Pathology"],
+        emergency: "🚨 24x7 Government Trauma Wing",
+        rating: "4.7 ⭐⭐⭐⭐⭐",
+        category: "emergency"
+    },
+    {
+        id: 11,
+        name: "Apollo Health City Dental & Implant Institute",
+        city: "Hyderabad",
+        phone: "+91 40 2360 7777",
+        altPhone: "1860 500 1066",
+        address: "Road No. 72, Film Nagar, Jubilee Hills, Hyderabad, Telangana 500033",
+        lat: 17.4165,
+        lng: 78.4116,
+        specialties: ["All-on-4 / All-on-6 Implants", "Digital Smile Design", "Bone Grafting"],
+        emergency: "🚨 24x7 Multi-Specialty Dental ICU",
+        rating: "4.9 ⭐⭐⭐⭐⭐",
+        category: "implant"
+    },
+    {
+        id: 12,
+        name: "Army College of Dental Sciences & Hospital",
+        city: "Hyderabad",
+        phone: "+91 40 2798 2932",
+        altPhone: "+91 40 2798 2933",
+        address: "ACDS Nagar, CRPF-Chennapur Road, Secunderabad, Telangana 500087",
+        lat: 17.5186,
+        lng: 78.5832,
+        specialties: ["Maxillofacial Prosthetics", "Endodontics", "Complex Implantology"],
+        emergency: "🚨 24x7 Military & Civilian Emergency",
+        rating: "4.8 ⭐⭐⭐⭐⭐",
+        category: "maxillofacial"
+    },
+
+    // --- MUMBAI / MMR ---
+    {
+        id: 13,
+        name: "Government Dental College & Hospital (GDC Mumbai)",
+        city: "Mumbai",
+        phone: "+91 22 2262 0668",
+        altPhone: "+91 22 2262 0669",
+        address: "St. George Hospital Compound, P D'Mello Road, Fort, Mumbai, Maharashtra 400001",
+        lat: 18.9402,
+        lng: 72.8354,
+        specialties: ["Oral & Maxillofacial Trauma", "Implantology", "Prosthodontics"],
+        emergency: "🚨 24x7 Emergency Casualty Center",
+        rating: "4.8 ⭐⭐⭐⭐⭐",
+        category: "emergency"
+    },
+    {
+        id: 14,
+        name: "Nair Hospital Dental College",
+        city: "Mumbai",
+        phone: "+91 22 2308 2714",
+        altPhone: "+91 22 2308 2715",
+        address: "Dr. A.L. Nair Road, Mumbai Central, Mumbai, Maharashtra 400008",
+        lat: 18.9723,
+        lng: 72.8228,
+        specialties: ["Craniofacial Implant Surgery", "Microvascular Surgery", "Sinus Lifts"],
+        emergency: "🚨 24x7 Trauma & Critical Care",
+        rating: "4.8 ⭐⭐⭐⭐⭐",
+        category: "maxillofacial"
+    },
+    {
+        id: 15,
+        name: "Dr. D.Y. Patil School of Dentistry",
+        city: "Mumbai",
+        phone: "+91 22 2770 9590",
+        altPhone: "+91 22 2770 9591",
+        address: "Sector 7, Vidyanagar, Nerul, Navi Mumbai, Maharashtra 400706",
+        lat: 19.0345,
+        lng: 73.0182,
+        specialties: ["Digital 3D Guided Implants", "Laser Dentistry", "Basal Implants"],
+        emergency: "🚨 24x7 Dental Helpdesk",
+        rating: "4.7 ⭐⭐⭐⭐⭐",
+        category: "implant"
+    },
+
+    // --- DELHI-NCR ---
+    {
+        id: 16,
+        name: "Maulana Azad Institute of Dental Sciences (MAIDS)",
+        city: "Delhi",
+        phone: "+91 11 2323 3925",
+        altPhone: "+91 11 2323 3926",
+        address: "Bahadur Shah Zafar Marg, LNJP Hospital Complex, New Delhi 110002",
+        lat: 28.6360,
+        lng: 77.2405,
+        specialties: ["Apex Maxillofacial Surgery", "Advanced Implantology", "Craniofacial Trauma"],
+        emergency: "🚨 24x7 National Trauma Center",
+        rating: "4.9 ⭐⭐⭐⭐⭐",
+        category: "maxillofacial"
+    },
+    {
+        id: 17,
+        name: "AIIMS Center for Dental Education & Research (CDER)",
+        city: "Delhi",
+        phone: "+91 11 2658 8500",
+        altPhone: "+91 11 2659 4800",
+        address: "Ansari Nagar East, Sri Aurobindo Marg, New Delhi 110029",
+        lat: 28.5672,
+        lng: 77.2100,
+        specialties: ["Zygomatic & Cortical Implants", "Maxillofacial Prosthetics", "Oncology Reconstructive Surgery"],
+        emergency: "🚨 24x7 AIIMS Emergency Trauma Care",
+        rating: "4.9 ⭐⭐⭐⭐⭐",
+        category: "emergency"
+    },
+    {
+        id: 18,
+        name: "Fortis Escorts Dental & Maxillofacial Institute",
+        city: "Delhi",
+        phone: "+91 11 4713 5000",
+        altPhone: "1800 102 4444",
+        address: "Okhla Road, Sukhdev Vihar Metro Station, New Delhi 110025",
+        lat: 28.5603,
+        lng: 77.2789,
+        specialties: ["Computer Navigated Implants", "Full Mouth All-on-4", "Oral Rebuilding"],
+        emergency: "🚨 24x7 Emergency Unit",
+        rating: "4.8 ⭐⭐⭐⭐⭐",
+        category: "implant"
+    },
+
+    // --- KOLKATA ---
+    {
+        id: 19,
+        name: "Dr. R. Ahmed Dental College & Hospital",
+        city: "Kolkata",
+        phone: "+91 33 2227 0092",
+        altPhone: "+91 33 2227 0093",
+        address: "114 Acharya Jagadish Chandra Bose Road, Sealdah, Kolkata, West Bengal 700014",
+        lat: 22.5647,
+        lng: 88.3692,
+        specialties: ["Maxillofacial Trauma", "Periodontal Implants", "Prosthodontics"],
+        emergency: "🚨 24x7 Casualty & Emergency",
+        rating: "4.8 ⭐⭐⭐⭐⭐",
+        category: "emergency"
+    },
+    {
+        id: 20,
+        name: "Apollo Multispeciality Dental Center",
+        city: "Kolkata",
+        phone: "+91 33 2320 3040",
+        altPhone: "1860 500 1066",
+        address: "58 Canal Circular Road, Kadapara, Phool Bagan, Kolkata, West Bengal 700054",
+        lat: 22.5768,
+        lng: 88.4005,
+        specialties: ["Immediate Load Implants", "Guided Bone Regeneration", "Laser Oral Surgery"],
+        emergency: "🚨 24x7 Dental Emergency Care",
+        rating: "4.8 ⭐⭐⭐⭐⭐",
+        category: "implant"
+    },
+
+    // --- PUNE ---
+    {
+        id: 21,
+        name: "Bharati Vidyapeeth Dental College & Hospital",
+        city: "Pune",
+        phone: "+91 20 2437 3266",
+        altPhone: "+91 20 2437 3377",
+        address: "Pune-Satara Road, Dhankawadi, Katraj, Pune, Maharashtra 411043",
+        lat: 18.4575,
+        lng: 73.8553,
+        specialties: ["Maxillofacial Surgery", "Prosthodontic Implants", "Endodontics"],
+        emergency: "🚨 24x7 Hospital Casualty Unit",
+        rating: "4.7 ⭐⭐⭐⭐⭐",
+        category: "maxillofacial"
+    },
+    {
+        id: 22,
+        name: "Dr. D.Y. Patil Dental College & Hospital",
+        city: "Pune",
+        phone: "+91 20 2780 5600",
+        altPhone: "+91 20 2780 5601",
+        address: "Sant Tukaram Nagar, Pimpri Colony, Pune, Maharashtra 411018",
+        lat: 18.6253,
+        lng: 73.8184,
+        specialties: ["Digital Guided Surgery", "Basal Implants", "Periodontics"],
+        emergency: "🚨 24x7 Emergency Helpdesk",
+        rating: "4.8 ⭐⭐⭐⭐⭐",
+        category: "implant"
+    },
+
+    // --- AHMEDABAD ---
+    {
+        id: 23,
+        name: "Government Dental College & Hospital (GDC Ahmedabad)",
+        city: "Ahmedabad",
+        phone: "+91 79 2268 0074",
+        altPhone: "+91 79 2268 4051",
+        address: "Civil Hospital Campus, Asarwa, Ahmedabad, Gujarat 380016",
+        lat: 23.0525,
+        lng: 72.6033,
+        specialties: ["Trauma Surgery", "Craniofacial Implants", "Periodontal Plastic Surgery"],
+        emergency: "🚨 24x7 Civil Hospital Emergency",
+        rating: "4.7 ⭐⭐⭐⭐⭐",
+        category: "emergency"
+    },
+
+    // --- KOCHI (COCHIN) ---
+    {
+        id: 24,
+        name: "Amrita School of Dentistry & Advanced Implant Center",
+        city: "Kochi",
+        phone: "+91 484 285 8100",
+        altPhone: "+91 484 285 1234",
+        address: "AIMS Health Sciences Campus, Ponekkara, Edappally, Kochi, Kerala 682041",
+        lat: 10.0322,
+        lng: 76.2922,
+        specialties: ["Zygomatic Implants", "Microvascular Revascularization", "Full-Mouth Rehabilitation"],
+        emergency: "🚨 24x7 Critical Care Trauma Center",
+        rating: "4.9 ⭐⭐⭐⭐⭐",
+        category: "maxillofacial"
+    },
+
+    // --- JAIPUR ---
+    {
+        id: 25,
+        name: "RUHS College of Dental Sciences & Hospital",
+        city: "Jaipur",
+        phone: "+91 141 228 0141",
+        altPhone: "+91 141 228 0142",
+        address: "Sector 11, Kumbha Marg, Pratap Nagar / Subhash Nagar, Jaipur, Rajasthan 302033",
+        lat: 26.8012,
+        lng: 75.8242,
+        specialties: ["Maxillofacial Trauma", "Immediate Implants", "Orthognathic Surgery"],
+        emergency: "🚨 24x7 Emergency Casualty",
+        rating: "4.7 ⭐⭐⭐⭐⭐",
+        category: "emergency"
+    },
+
+    // --- CHANDIGARH ---
+    {
+        id: 26,
+        name: "Dr. Harvansh Singh Judge Institute of Dental Sciences",
+        city: "Chandigarh",
+        phone: "+91 172 253 4031",
+        altPhone: "+91 172 254 1056",
+        address: "Panjab University, Sector 25, Chandigarh 160014",
+        lat: 30.7584,
+        lng: 76.7587,
+        specialties: ["Maxillofacial Rehabilitation", "Computer-Guided Implants", "Bone Augmentation"],
+        emergency: "🚨 24x7 Emergency Unit",
+        rating: "4.8 ⭐⭐⭐⭐⭐",
+        category: "maxillofacial"
+    },
+
+    // --- LUCKNOW ---
+    {
+        id: 27,
+        name: "KGMU Faculty of Dental Sciences & Hospital",
+        city: "Lucknow",
+        phone: "+91 522 225 7450",
+        altPhone: "+91 522 225 7451",
+        address: "King George's Medical University, Chowk, Lucknow, Uttar Pradesh 226003",
+        lat: 26.8687,
+        lng: 80.9150,
+        specialties: ["Craniofacial Trauma", "Dental Implantology", "Microvascular Reconstruction"],
+        emergency: "🚨 24x7 KGMU Trauma Center",
+        rating: "4.9 ⭐⭐⭐⭐⭐",
+        category: "emergency"
+    },
+
+    // --- COIMBATORE ---
+    {
+        id: 28,
+        name: "Sri Ramakrishna Dental College & Hospital",
+        city: "Coimbatore",
+        phone: "+91 422 256 0381",
+        altPhone: "+91 422 450 0000",
+        address: "SNR College Road, Nava India, Avarampalayam, Coimbatore, Tamil Nadu 641006",
+        lat: 11.0253,
+        lng: 76.9942,
+        specialties: ["Implant Prosthodontics", "Guided Surgery", "Laser Periodontics"],
+        emergency: "🚨 24x7 Emergency Dental Unit",
+        rating: "4.7 ⭐⭐⭐⭐⭐",
+        category: "implant"
     }
 ];
+
+// Haversine Distance Formula (km)
+function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Radius of the Earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
 
 function initHospitalsMap() {
     const mapContainer = document.getElementById('hospitals-map');
     if (!mapContainer) return;
 
     if (!hospitalsMap && typeof L !== 'undefined') {
-        // Initialize Leaflet Map centered on central healthcare hub
-        hospitalsMap = L.map('hospitals-map').setView([13.0450, 80.2000], 11);
+        // Initialize Leaflet Map centered on pan-India overview
+        hospitalsMap = L.map('hospitals-map').setView([20.5937, 78.9629], 5);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -1175,16 +1517,74 @@ function initHospitalsMap() {
         }).addTo(hospitalsMap);
     }
 
-    // Refresh markers & grid
-    filterHospitals();
+    // Auto-detect user geolocation if not already detected
+    if (!userLiveCoords && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                userLiveCoords = {
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude
+                };
+                updateUserLocationMarker(userLiveCoords.lat, userLiveCoords.lng);
+                filterHospitals();
+            },
+            (err) => {
+                console.log("Auto-location optional notice:", err.message);
+                filterHospitals();
+            },
+            { timeout: 6000, enableHighAccuracy: true }
+        );
+    } else {
+        filterHospitals();
+    }
 
-    // Leaflet map resize trigger after CSS tab transition
+    // Leaflet map resize trigger
     setTimeout(() => {
         if (hospitalsMap) {
             hospitalsMap.invalidateSize();
             fitHospitalBounds(DENTAL_HOSPITALS);
         }
-    }, 200);
+    }, 250);
+}
+
+function updateUserLocationMarker(lat, lng) {
+    if (!hospitalsMap || typeof L === 'undefined') return;
+
+    if (userLocationMarker) hospitalsMap.removeLayer(userLocationMarker);
+
+    const userIcon = L.divIcon({
+        className: 'user-location-pin',
+        html: `<div style="background:#27ae60; color:#fff; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; box-shadow:0 0 14px #27ae60; border:3px solid #fff;">📍</div>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
+    });
+
+    userLocationMarker = L.marker([lat, lng], { icon: userIcon })
+        .addTo(hospitalsMap)
+        .bindPopup("<b>📍 Your Current Location</b><br>Showing nearest dental hospitals below.")
+        .openPopup();
+
+    const badge = document.getElementById('user-location-badge');
+    if (badge) {
+        badge.innerHTML = `📍 Live Location Active (Lat: ${lat.toFixed(3)}, Lng: ${lng.toFixed(3)}) — Sorted by Proximity`;
+    }
+}
+
+function onCityFilterChange() {
+    const city = document.getElementById('hospital-city-filter')?.value || 'all';
+
+    if (city === 'near_me') {
+        locateUserOnMap(true);
+        return;
+    }
+
+    filterHospitals();
+
+    if (city !== 'all' && CITY_COORDINATES[city] && hospitalsMap) {
+        hospitalsMap.setView(CITY_COORDINATES[city], 11, { animate: true });
+    } else if (city === 'all') {
+        fitHospitalBounds(DENTAL_HOSPITALS);
+    }
 }
 
 function renderHospitalMarkers(hospitals) {
@@ -1202,16 +1602,25 @@ function renderHospitalMarkers(hospitals) {
         popupAnchor: [0, -32]
     });
 
-    hospitals.forEach((h, index) => {
+    hospitals.forEach((h) => {
+        const distText = (h.distance !== undefined && h.distance !== null)
+            ? `<div style="color:#27ae60; font-weight:bold; font-size:0.85rem; margin-bottom:4px;">📍 ${h.distance < 1 ? Math.round(h.distance * 1000) + ' m' : h.distance.toFixed(1) + ' km'} away from you</div>`
+            : '';
+
         const popupContent = `
-            <div style="font-family:inherit; min-width:220px; text-align:left; padding:4px;">
-                <h4 style="margin:0 0 5px 0; color:#1e2d3c; font-size:1.05rem;">🏥 ${h.name}</h4>
-                <p style="margin:0 0 6px 0; color:#64748b; font-size:0.85rem;">📍 ${h.address}</p>
-                <div style="margin-bottom:8px; font-weight:bold; color:#27ae60; font-size:0.85rem;">${h.emergency}</div>
-                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
-                    ${h.specialties.map(s => `<span style="background:#e8f4fd; color:#2980b9; font-size:0.75rem; padding:2px 8px; border-radius:10px; font-weight:600;">${s}</span>`).join('')}
+            <div style="font-family:inherit; min-width:230px; text-align:left; padding:4px;">
+                <h4 style="margin:0 0 4px 0; color:#1e2d3c; font-size:1.05rem;">🏥 ${h.name}</h4>
+                <div style="color:#64748b; font-size:0.8rem; margin-bottom:4px;">🏙️ ${h.city}</div>
+                ${distText}
+                <p style="margin:0 0 6px 0; color:#475569; font-size:0.82rem;">📍 ${h.address}</p>
+                <div style="margin-bottom:6px; font-weight:bold; color:#d97706; font-size:0.85rem;">${h.emergency}</div>
+                <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px;">
+                    ${h.specialties.map(s => `<span style="background:#e8f4fd; color:#2980b9; font-size:0.75rem; padding:2px 7px; border-radius:8px; font-weight:600;">${s}</span>`).join('')}
                 </div>
-                <a href="tel:${h.phone.replace(/\s+/g, '')}" style="display:block; text-align:center; background:#27ae60; color:#fff; text-decoration:none; padding:8px 12px; border-radius:6px; font-weight:bold; font-size:0.9rem; margin-top:6px;">📞 Call: ${h.phone}</a>
+                <div style="display:flex; gap:6px; margin-top:8px;">
+                    <a href="tel:${h.phone.replace(/\s+/g, '')}" style="flex:1; text-align:center; background:#27ae60; color:#fff; text-decoration:none; padding:6px 8px; border-radius:5px; font-weight:bold; font-size:0.85rem;">📞 Call</a>
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" style="flex:1; text-align:center; background:#2980b9; color:#fff; text-decoration:none; padding:6px 8px; border-radius:5px; font-weight:bold; font-size:0.85rem;">🚗 Route</a>
+                </div>
             </div>
         `;
 
@@ -1227,7 +1636,7 @@ function fitHospitalBounds(hospitals) {
     if (!hospitalsMap || hospitals.length === 0 || typeof L === 'undefined') return;
     const group = L.featureGroup(hospitalMarkers);
     if (group.getLayers().length > 0) {
-        hospitalsMap.fitBounds(group.getBounds().pad(0.15));
+        hospitalsMap.fitBounds(group.getBounds().pad(0.12));
     }
 }
 
@@ -1236,80 +1645,136 @@ function renderHospitalsGrid(hospitals) {
     const badge = document.getElementById('hospital-count-badge');
     if (!container) return;
 
-    if (badge) badge.innerText = `${hospitals.length} Hospitals Listed`;
+    if (badge) {
+        badge.innerText = `${hospitals.length} Dental Hospitals Located`;
+    }
 
     if (hospitals.length === 0) {
         container.innerHTML = `
-            <div style="grid-column: 1/-1; text-align:center; padding:30px; color:#64748b;">
-                <p style="font-size:1.1rem;">🔍 No dental hospitals found matching your search.</p>
-                <button type="button" class="btn-primary" onclick="resetHospitalMapView()" style="padding:8px 16px; font-size:0.9rem; background:#1e2d3c;">Show All Hospitals</button>
+            <div style="grid-column: 1/-1; text-align:center; padding:40px; color:#64748b;">
+                <p style="font-size:1.15rem; font-weight:bold;">🔍 No dental hospitals found matching the selected radius or search.</p>
+                <p style="font-size:0.9rem; margin-top:4px;">Try selecting "All Cities" or increasing your distance radius.</p>
+                <button type="button" class="btn-primary" onclick="resetHospitalMapView()" style="padding:9px 18px; font-size:0.9rem; background:#1e2d3c; margin-top:10px;">Show All Hospitals</button>
             </div>
         `;
         return;
     }
 
-    container.innerHTML = hospitals.map((h, i) => `
-        <div class="card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; text-align:left; box-shadow:0 4px 12px rgba(0,0,0,0.04); display:flex; flex-direction:column; justify-content:space-between; transition:transform 0.2s, box-shadow 0.2s;">
+    container.innerHTML = hospitals.map((h, i) => {
+        const isNearest = (i === 0 && h.distance !== undefined && h.distance !== null && h.distance < 50);
+        const distBadge = (h.distance !== undefined && h.distance !== null)
+            ? `<span style="background:${isNearest ? '#dcfce7' : '#f1f5f9'}; color:${isNearest ? '#15803d' : '#475569'}; padding:3px 10px; border-radius:12px; font-size:0.8rem; font-weight:bold; border:1px solid ${isNearest ? '#86efac' : '#cbd5e1'};">📍 ${h.distance < 1 ? Math.round(h.distance * 1000) + ' m' : h.distance.toFixed(1) + ' km'} ${isNearest ? '(Nearest to you)' : 'away'}</span>`
+            : `<span style="background:#f1f5f9; color:#64748b; padding:3px 8px; border-radius:12px; font-size:0.75rem;">🏙️ ${h.city}</span>`;
+
+        return `
+        <div class="card" style="background:#ffffff; border:1.5px solid ${isNearest ? '#22c55e' : '#e2e8f0'}; border-radius:12px; padding:20px; text-align:left; box-shadow:${isNearest ? '0 6px 18px rgba(34,197,94,0.15)' : '0 4px 12px rgba(0,0,0,0.04)'}; display:flex; flex-direction:column; justify-content:space-between; transition:transform 0.2s, box-shadow 0.2s;">
             <div>
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
-                    <h3 style="margin:0; font-size:1.15rem; color:#1e2d3c; font-weight:bold;">🏥 ${h.name}</h3>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+                    <h3 style="margin:0; font-size:1.12rem; color:#1e2d3c; font-weight:bold;">🏥 ${h.name}</h3>
+                    ${distBadge}
                 </div>
-                <div style="color:#f39c12; font-size:0.85rem; font-weight:bold; margin-bottom:10px;">${h.rating}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div style="color:#f39c12; font-size:0.85rem; font-weight:bold;">${h.rating}</div>
+                    <span style="font-size:0.8rem; color:#64748b; font-weight:600;">🏙️ ${h.city} Region</span>
+                </div>
                 
                 <div style="background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #edf2f7; margin-bottom:12px;">
-                    <div style="font-size:0.9rem; color:#334155; margin-bottom:6px;">
+                    <div style="font-size:0.88rem; color:#334155; margin-bottom:6px; line-height:1.4;">
                         <strong>📍 Address:</strong> ${h.address}
                     </div>
-                    <div style="font-size:0.85rem; color:#27ae60; font-weight:600; margin-bottom:4px;">
+                    <div style="font-size:0.82rem; color:#27ae60; font-weight:600;">
                         ${h.emergency}
                     </div>
                 </div>
 
-                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:15px;">
+                <div style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:15px;">
                     ${h.specialties.map(s => `<span style="background:#e8f4fd; color:#2980b9; font-size:0.75rem; padding:3px 8px; border-radius:12px; font-weight:600;">${s}</span>`).join('')}
                 </div>
             </div>
 
             <div style="border-top:1px solid #f1f5f9; padding-top:14px; display:flex; flex-direction:column; gap:10px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:0.85rem; color:#64748b;">Primary Contact:</span>
-                    <a href="tel:${h.phone.replace(/\s+/g, '')}" style="font-weight:bold; color:#27ae60; text-decoration:none; font-size:1rem; display:flex; align-items:center; gap:4px;">
+                    <span style="font-size:0.85rem; color:#64748b;">Primary Emergency Line:</span>
+                    <a href="tel:${h.phone.replace(/\s+/g, '')}" style="font-weight:bold; color:#27ae60; text-decoration:none; font-size:0.95rem; display:flex; align-items:center; gap:4px;">
                         📞 ${h.phone}
                     </a>
                 </div>
                 ${h.altPhone ? `
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:0.85rem; color:#64748b;">Helpline:</span>
-                    <a href="tel:${h.altPhone.replace(/\s+/g, '')}" style="font-weight:600; color:#2980b9; text-decoration:none; font-size:0.9rem;">
+                    <span style="font-size:0.85rem; color:#64748b;">Helpline / Desk:</span>
+                    <a href="tel:${h.altPhone.replace(/\s+/g, '')}" style="font-weight:600; color:#2980b9; text-decoration:none; font-size:0.88rem;">
                         📱 ${h.altPhone}
                     </a>
                 </div>` : ''}
 
-                <div style="display:flex; gap:8px; margin-top:5px;">
-                    <a href="tel:${h.phone.replace(/\s+/g, '')}" class="btn-primary" style="flex:1; text-align:center; padding:8px 12px; font-size:0.9rem; text-decoration:none; background:#27ae60; display:flex; align-items:center; justify-content:center; gap:5px;">
-                        📞 Call Now
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px; margin-top:5px;">
+                    <a href="tel:${h.phone.replace(/\s+/g, '')}" class="btn-primary" style="text-align:center; padding:8px 6px; font-size:0.82rem; text-decoration:none; background:#27ae60; display:flex; align-items:center; justify-content:center; gap:4px;">
+                        📞 Call
                     </a>
-                    <button type="button" class="btn-primary" onclick="focusHospitalOnMap(${h.id})" style="flex:1; padding:8px 12px; font-size:0.9rem; background:#1e2d3c; display:flex; align-items:center; justify-content:center; gap:5px;">
-                        🗺️ View on Map
+                    <button type="button" class="btn-primary" onclick="focusHospitalOnMap(${h.id})" style="padding:8px 6px; font-size:0.82rem; background:#1e2d3c; display:flex; align-items:center; justify-content:center; gap:4px;">
+                        🗺️ View Map
                     </button>
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" class="btn-primary" style="text-align:center; padding:8px 6px; font-size:0.82rem; text-decoration:none; background:#2980b9; display:flex; align-items:center; justify-content:center; gap:4px;">
+                        🚗 Route
+                    </a>
                 </div>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function filterHospitals() {
     const searchVal = (document.getElementById('hospital-search-input')?.value || '').toLowerCase().trim();
-    const filterCat = document.getElementById('hospital-specialty-filter')?.value || 'all';
+    const cityFilter = document.getElementById('hospital-city-filter')?.value || 'all';
+    const specialtyFilter = document.getElementById('hospital-specialty-filter')?.value || 'all';
+    const radiusFilter = document.getElementById('hospital-radius-filter')?.value || 'all';
 
-    let filtered = DENTAL_HOSPITALS.filter(h => {
-        const matchesCat = (filterCat === 'all') || (h.category === filterCat) || h.specialties.some(s => s.toLowerCase().includes(filterCat));
-        const matchesSearch = !searchVal || 
-            h.name.toLowerCase().includes(searchVal) || 
-            h.address.toLowerCase().includes(searchVal) || 
-            h.phone.includes(searchVal) || 
-            h.specialties.some(s => s.toLowerCase().includes(searchVal));
-        return matchesCat && matchesSearch;
+    // Calculate distance for all hospitals if user location is available
+    let list = DENTAL_HOSPITALS.map(h => {
+        let dist = null;
+        if (userLiveCoords) {
+            dist = calculateHaversineDistance(userLiveCoords.lat, userLiveCoords.lng, h.lat, h.lng);
+        }
+        return { ...h, distance: dist };
+    });
+
+    // Sort by proximity (nearest to farthest)
+    if (userLiveCoords) {
+        list.sort((a, b) => (a.distance || 999999) - (b.distance || 999999));
+    }
+
+    // Filter by criteria
+    let filtered = list.filter(h => {
+        // City match
+        let matchesCity = true;
+        if (cityFilter !== 'all' && cityFilter !== 'near_me') {
+            matchesCity = (h.city === cityFilter);
+        }
+
+        // Specialty match
+        let matchesSpecialty = true;
+        if (specialtyFilter !== 'all') {
+            matchesSpecialty = (h.category === specialtyFilter) || h.specialties.some(s => s.toLowerCase().includes(specialtyFilter));
+        }
+
+        // Radius match
+        let matchesRadius = true;
+        if (radiusFilter !== 'all' && userLiveCoords && h.distance !== null) {
+            matchesRadius = (h.distance <= parseFloat(radiusFilter));
+        }
+
+        // Search match
+        let matchesSearch = true;
+        if (searchVal) {
+            matchesSearch = h.name.toLowerCase().includes(searchVal) ||
+                            h.address.toLowerCase().includes(searchVal) ||
+                            h.city.toLowerCase().includes(searchVal) ||
+                            h.phone.includes(searchVal) ||
+                            h.specialties.some(s => s.toLowerCase().includes(searchVal));
+        }
+
+        return matchesCity && matchesSpecialty && matchesRadius && matchesSearch;
     });
 
     renderHospitalMarkers(filtered);
@@ -1337,48 +1802,49 @@ function focusHospitalOnMap(hospitalId) {
     }
 }
 
-function locateUserOnMap() {
+function locateUserOnMap(shouldCenter = true) {
     if (!navigator.geolocation) {
         alert("Geolocation is not supported by your browser.");
         return;
     }
 
+    const badge = document.getElementById('user-location-badge');
+    if (badge) badge.innerText = "⏳ Detecting your precise GPS location...";
+
     navigator.geolocation.getCurrentPosition(
         (pos) => {
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
+            userLiveCoords = { lat, lng };
 
-            if (hospitalsMap && typeof L !== 'undefined') {
-                if (userLocationMarker) hospitalsMap.removeLayer(userLocationMarker);
+            updateUserLocationMarker(lat, lng);
 
-                const userIcon = L.divIcon({
-                    className: 'user-location-pin',
-                    html: `<div style="background:#2980b9; color:#fff; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; box-shadow:0 0 10px #2980b9; border:2px solid #fff;">📍</div>`,
-                    iconSize: [28, 28],
-                    iconAnchor: [14, 14]
-                });
-
-                userLocationMarker = L.marker([lat, lng], { icon: userIcon })
-                    .addTo(hospitalsMap)
-                    .bindPopup("<b>📍 You Are Here</b><br>Searching nearest dental hospitals...")
-                    .openPopup();
-
+            if (shouldCenter && hospitalsMap) {
                 hospitalsMap.setView([lat, lng], 13, { animate: true });
             }
+
+            filterHospitals();
         },
         (err) => {
             console.warn("Geolocation prompt:", err.message);
-            alert("Unable to retrieve your current location. Centering on default healthcare region.");
-            resetHospitalMapView();
-        }
+            alert("Could not retrieve GPS location: " + err.message + ". You can select your city from the dropdown.");
+            if (badge) badge.innerText = "📍 Showing All Cities Directory";
+            filterHospitals();
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
     );
 }
 
 function resetHospitalMapView() {
     const searchInput = document.getElementById('hospital-search-input');
-    const filterDropdown = document.getElementById('hospital-specialty-filter');
+    const cityFilter = document.getElementById('hospital-city-filter');
+    const specialtyFilter = document.getElementById('hospital-specialty-filter');
+    const radiusFilter = document.getElementById('hospital-radius-filter');
+
     if (searchInput) searchInput.value = '';
-    if (filterDropdown) filterDropdown.value = 'all';
+    if (cityFilter) cityFilter.value = 'all';
+    if (specialtyFilter) specialtyFilter.value = 'all';
+    if (radiusFilter) radiusFilter.value = 'all';
 
     filterHospitals();
     fitHospitalBounds(DENTAL_HOSPITALS);

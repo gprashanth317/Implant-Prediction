@@ -596,21 +596,62 @@
 
                 <!-- Search & Filter Controls -->
                 <div class="card" style="padding: 18px 24px; margin-bottom: 20px; text-align: left;">
-                    <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
-                        <div style="flex: 2; min-width: 250px;">
-                            <input type="text" id="hospital-search-input" onkeyup="filterHospitals()" placeholder="🔍 Search dental hospitals by name, area, or specialty..." style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 0.8rem; font-weight: bold; color: #1e2d3c; display: block; margin-bottom: 4px;">🔍 Search Hospital / Area</label>
+                            <input type="text" id="hospital-search-input" onkeyup="filterHospitals()" placeholder="Hospital, locality, road..." style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.9rem;">
                         </div>
-                        <div style="flex: 1; min-width: 200px;">
-                            <select id="hospital-specialty-filter" onchange="filterHospitals()" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; background: #fff;">
+
+                        <div>
+                            <label style="font-size: 0.8rem; font-weight: bold; color: #1e2d3c; display: block; margin-bottom: 4px;">🏙️ City / Region</label>
+                            <select id="hospital-city-filter" onchange="onCityFilterChange()" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.9rem; background: #fff;">
+                                <option value="all">🌐 All Cities (National Directory)</option>
+                                <option value="near_me">📍 Nearest to Me (Current Location)</option>
+                                <option value="Bengaluru">🏙️ Bengaluru (Bangalore)</option>
+                                <option value="Delhi">🏙️ Delhi-NCR</option>
+                                <option value="Mumbai">🏙️ Mumbai / MMR</option>
+                                <option value="Hyderabad">🏙️ Hyderabad / Telangana</option>
+                                <option value="Chennai">🏙️ Chennai / Tamil Nadu</option>
+                                <option value="Kolkata">🏙️ Kolkata / West Bengal</option>
+                                <option value="Pune">🏙️ Pune / Maharashtra</option>
+                                <option value="Ahmedabad">🏙️ Ahmedabad / Gujarat</option>
+                                <option value="Kochi">🏙️ Kochi / Kerala</option>
+                                <option value="Jaipur">🏙️ Jaipur / Rajasthan</option>
+                                <option value="Chandigarh">🏙️ Chandigarh / Punjab</option>
+                                <option value="Lucknow">🏙️ Lucknow / UP</option>
+                                <option value="Coimbatore">🏙️ Coimbatore / Tamil Nadu</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.8rem; font-weight: bold; color: #1e2d3c; display: block; margin-bottom: 4px;">📏 Distance Radius (Near Me)</label>
+                            <select id="hospital-radius-filter" onchange="filterHospitals()" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.9rem; background: #fff;">
+                                <option value="all">🌐 All Distances</option>
+                                <option value="10">📍 Within 10 km (Immediate Vicinity)</option>
+                                <option value="25">📍 Within 25 km</option>
+                                <option value="50">📍 Within 50 km</option>
+                                <option value="100">📍 Within 100 km</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.8rem; font-weight: bold; color: #1e2d3c; display: block; margin-bottom: 4px;">🩺 Clinical Specialty</label>
+                            <select id="hospital-specialty-filter" onchange="filterHospitals()" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.9rem; background: #fff;">
                                 <option value="all">🌐 All Specialties</option>
                                 <option value="implant">🦷 Dental Implantology</option>
                                 <option value="maxillofacial">🩺 Maxillofacial Surgery</option>
                                 <option value="emergency">🚨 24x7 Emergency Dental</option>
                             </select>
                         </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button type="button" class="btn-primary" onclick="locateUserOnMap()" style="padding: 10px 16px; font-size: 0.9rem; background: #2980b9; display: flex; align-items: center; gap: 6px;">📍 Locate Me</button>
-                            <button type="button" class="btn-primary" onclick="resetHospitalMapView()" style="padding: 10px 16px; font-size: 0.9rem; background: #64748b;">🔄 Reset View</button>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="btn-primary" onclick="locateUserOnMap(true)" style="padding: 8px 14px; font-size: 0.85rem; background: #27ae60; display: flex; align-items: center; gap: 5px;">📍 Locate & Show Nearest to Me</button>
+                            <button type="button" class="btn-primary" onclick="resetHospitalMapView()" style="padding: 8px 14px; font-size: 0.85rem; background: #64748b;">🔄 Reset View</button>
+                        </div>
+                        <div id="user-location-badge" style="font-size: 0.85rem; color: #27ae60; font-weight: bold;">
+                            📍 Live GPS Active — Hospitals sorted by distance
                         </div>
                     </div>
                 </div>
