@@ -2286,27 +2286,3 @@ document.getElementById('prof-step3-form').addEventListener('submit', async func
         msgDiv.classList.remove('hidden');
     }
 });
-
-// --- 8. MOBILE APP (PWA / APK) INSTALLATION LOGIC ---
-let deferredInstallPrompt = null;
-
-window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredInstallPrompt = e;
-    const installBtn = document.getElementById('pwa-install-sidebar-btn');
-    if (installBtn) installBtn.style.display = 'block';
-});
-
-function triggerPWAInstall() {
-    if (deferredInstallPrompt) {
-        deferredInstallPrompt.prompt();
-        deferredInstallPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-                console.log('✅ User accepted the mobile app install prompt!');
-            }
-            deferredInstallPrompt = null;
-        });
-    } else {
-        alert("📲 To install this app on your mobile phone:\n\n1. In Chrome mobile, tap the 3 dots (⋮) in the top-right.\n2. Tap 'Install App' or 'Add to Home screen'.\n3. The app icon will be installed directly on your phone home screen!");
-    }
-}
