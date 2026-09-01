@@ -124,7 +124,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="🟢 Low Risk (>=90%): 0 patients"
+                    android:text="🟢 Low Risk (&gt;=90%): 0 patients"
                     android:textColor="#27AE60"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -144,7 +144,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="🔴 High Risk (<80%): 0 patients"
+                    android:text="🔴 High Risk (&lt;80%): 0 patients"
                     android:textColor="#C0392B"
                     android:textSize="13sp"
                     android:textStyle="bold" />
