@@ -44,8 +44,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         holder.tvRiskBadge.setText(item.getRiskCategory());
         holder.tvRiskBadge.setTextColor(item.getRiskColor());
 
-        holder.tvSpecs.setText(String.format("Age/Gender: %d yrs / %s | Jaw: %s | Bone: %s
-Implant: %s (%.1fmm x %.1fmm)",
+        holder.tvSpecs.setText(String.format("Age/Gender: %d yrs / %s | Jaw: %s | Bone: %s\nImplant: %s (%.1fmm x %.1fmm)",
                 item.getAge(), item.getGender(), item.getJawLocation(), item.getBoneQuality(),
                 item.getImplantSurface(), item.getImplantLength(), item.getImplantDiameter()));
 
